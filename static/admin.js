@@ -297,10 +297,10 @@ document.getElementById('match-form').onsubmit = async function(e) {
     });
     this.reset();
     fetchMatches();
-    // Optionally reset selects
     populateMatchForm();
     updateMatchPlayersSelects();
     document.querySelector('#match-form button').textContent = 'Add Match';
+    document.getElementById('match-id').value = '';
 };
 
 window.onload = function() {
