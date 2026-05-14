@@ -390,7 +390,38 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func EditMatch(w http.ResponseWriter, r *http.Request) {
-	// ...edit match details...
+	type req struct {
+		ID        int    `json:"id"`
+		Format    string `json:"format"`
+		Holes     string `json:"holes"`
+		TeamA     int    `json:"team_a"`
+		TeamB     int    `json:"team_b"`
+		PlayersA  []int  `json:"players_a"`
+		PlayersB  []int  `json:"players_b"`
+		StartTime string `json:"start_time"`
+	}
+	var body req
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// Update match details
+	_, err := DB.Exec(`UPDATE matches SET format=?, holes=?, team_a_id=?, team_b_id=?, start_time=? WHERE id=?`,
+		body.Format, body.Holes, body.TeamA, body.TeamB, body.StartTime, body.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// Remove old players
+	_, _ = DB.Exec(`DELETE FROM match_players WHERE match_id=?`, body.ID)
+	// Add new players for team A
+	for _, pid := range body.PlayersA {
+		_, _ = DB.Exec(`INSERT INTO match_players (match_id, player_id, team_side) VALUES (?, ?, 'A')`, body.ID, pid)
+	}
+	// Add new players for team B
+	for _, pid := range body.PlayersB {
+		_, _ = DB.Exec(`INSERT INTO match_players (match_id, player_id, team_side) VALUES (?, ?, 'B')`, body.ID, pid)
+	}
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -631,12 +662,16 @@ func HandleMainPage(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/dashboard.html")
 		return
 	}
+	if r.URL.Path == "/show" || r.URL.Path == "/show/" {
+		http.ServeFile(w, r, "static/show.html")
+		return
+	}
 	if r.URL.Path == "/" || r.URL.Path == "" {
 		http.ServeFile(w, r, "static/dashboard.html")
 		return
 	}
-	if r.URL.Path == "/admin" || r.URL.Path == "/admin/" {
-		http.ServeFile(w, r, "static/admin.html")
+	if r.URL.Path == "/adminjd" || r.URL.Path == "/adminjd/" {
+		http.ServeFile(w, r, "static/adminjd.html")
 		return
 	}
 	// Serve static assets (JS, CSS, etc.)

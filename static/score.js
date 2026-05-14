@@ -71,8 +71,10 @@ async function fetchMatches() {
 
 async function showMatchScoreSection() {
     if (!currentMatch) return;
-    document.getElementById('team-a').textContent = `${currentMatch.team_a.name}: ${currentMatch.team_a.players.map(p => p.name).join(', ')}`;
-    document.getElementById('team-b').textContent = `${currentMatch.team_b.name}: ${currentMatch.team_b.players.map(p => p.name).join(', ')}`;
+    document.getElementById('team-a').innerHTML = `<strong>${currentMatch.team_a.name}</strong><br>` +
+        currentMatch.team_a.players.map(p => p.name).join('<br>');
+    document.getElementById('team-b').innerHTML = `<strong>${currentMatch.team_b.name}</strong><br>` +
+        currentMatch.team_b.players.map(p => p.name).join('<br>');
     // Load hole results and match status from DB
     await loadHoleResults();
     await loadMatchStatus();
@@ -176,18 +178,20 @@ function updateHoleButtons(hole) {
     }
     document.querySelectorAll(`.hole-btn[data-hole="${hole}"]`).forEach(btn => {
         const val = btn.getAttribute('data-val');
-        btn.classList.remove('selected');
+        // btn.classList.remove('selected');
         btn.style.background = '';
         btn.style.color = '';
         if (val === holeResults[hole]) {
             btn.classList.add('selected');
-            if (val === 'A') {
-                btn.style.background = currentMatch.team_a.color;
-                btn.style.color = getContrastYIQ(currentMatch.team_a.color);
-            } else if (val === 'B') {
-                btn.style.background = currentMatch.team_b.color;
-                btn.style.color = getContrastYIQ(currentMatch.team_b.color);
-            }
+            // if (val === 'A') {
+            //     btn.style.background = currentMatch.team_a.color;
+            //     btn.style.color = getContrastYIQ(currentMatch.team_a.color);
+            // } else if (val === 'B') {
+            //     btn.style.background = currentMatch.team_b.color;
+            //     btn.style.color = getContrastYIQ(currentMatch.team_b.color);
+            // }
+            // btn.style.background = currentMatch.team_a.color;
+            // btn.style.color = getContrastYIQ(currentMatch.team_a.color);
         }
     });
 }
@@ -214,7 +218,7 @@ function updateMatchScoreDisplay() {
     for (let i = start; i < end; i++) {
         if (!holeResults[i]) holesLeft++;
     }
-    scoreText += `  (${holesLeft} to play)`;
+    scoreText += `  (Zbývá ${holesLeft})`;
     document.getElementById('match-score').textContent = scoreText;
 }
 
@@ -337,8 +341,8 @@ window.onload = async function() {
         scoringEnableBtn.onclick = function() {
             enableScoring();
             scoringEnableBtn.disabled = true;
-            scoringEnableBtn.textContent = 'Scoring Enabled';
-            scoringEnableBtn.style.background = '#90ee90'; // light green
+            scoringEnableBtn.textContent = 'Skórování povoleno';
+            scoringEnableBtn.style.background = '#79b879ff';
         };
     }
     window.onfocus = function() {
@@ -362,10 +366,10 @@ function updateFinishButton() {
     const btn = document.getElementById('finish-btn');
     if (!btn || !currentMatch) return;
     if (currentMatch.status === 'completed') {
-        btn.textContent = 'Unfinish Match';
+        btn.textContent = 'Upravit zápas';
         btn.style.background = '#e53e3e';
     } else {
-        btn.textContent = 'Finish Match';
+        btn.textContent = 'Ukončit zápas';
         btn.style.background = '#38a169';
     }
 }
@@ -374,16 +378,28 @@ function renderMatchTitle() {
     const title = document.getElementById('match-title');
     if (!title || !currentMatch) return;
     let typeText = '';
+    // Czech translation for holes type
     if (currentMatch.holes === 'front9') {
-        typeText = 'Front 9';
+        typeText = 'První 9';
     } else if (currentMatch.holes === 'back9') {
-        typeText = 'Back 9';
+        typeText = 'Druhá 9';
     } else {
-        typeText = '18 Holes';
+        typeText = '18 jamek';
     }
-    // Optionally append format (singles, foursome, etc.)
+    // Czech translation for format
     if (currentMatch.format) {
-        typeText += ' - ' + currentMatch.format.charAt(0).toUpperCase() + currentMatch.format.slice(1);
+        let formatCz = '';
+        switch (currentMatch.format) {
+            case 'singles':
+                formatCz = 'Singly'; break;
+            case 'foursome':
+                formatCz = 'Foursome'; break;
+            case 'texas_scramble':
+                formatCz = 'Texas Scramble'; break;
+            default:
+                formatCz = currentMatch.format;
+        }
+        typeText += ' - ' + formatCz;
     }
     title.textContent = typeText;
 }

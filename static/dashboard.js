@@ -95,7 +95,7 @@ function matchRow(m) {
             scoreHtml = `<div class='score-team'>${m.score_text}</div>`;
         }
         if (holesLeft !== null) {
-            scoreHtml += `<div class='score-holes-left'>(${holesLeft} to play)</div>`;
+            scoreHtml += `<div class='score-holes-left'>(Zbývá ${holesLeft})</div>`;
         }
     }
     console.log('Rendering match:', m);
