@@ -10,7 +10,11 @@
         body { font-family: 'Roboto', Arial, sans-serif; background: #f3f7ff; margin: 0; }
         .admin-container { max-width: 700px; margin: 2rem auto; background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 2rem 1rem; }
         h1 { text-align: center; color: #2563eb; }
-        .section { margin-bottom: 2.5rem; }
+        .tab-bar { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; }
+        .tab-btn { padding: 8px 20px; border: none; background: none; cursor: pointer; font-size: 1rem; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #6b7280; }
+        .tab-btn.active { border-bottom-color: #2563eb; color: #2563eb; font-weight: 600; }
+        .section { display: none; margin-bottom: 2.5rem; }
+        .section.active { display: block; }
         .section h2 { color: #1741a6; margin-bottom: 0.5rem; }
         label { display: block; margin: 0.5rem 0 0.2rem 0; }
         input, select { width: 100%; padding: 0.5rem; margin-bottom: 0.7rem; border-radius: 6px; border: 1px solid #bbb; }
@@ -30,7 +34,12 @@
 <body>
     <div class="admin-container">
         <h1>Ryder Admin</h1>
-        <div class="section" id="players-section">
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="players-section" onclick="showTab('players-section')">Players</button>
+            <button class="tab-btn" data-tab="teams-section" onclick="showTab('teams-section')">Teams</button>
+            <button class="tab-btn" data-tab="matches-section" onclick="showTab('matches-section')">Matches</button>
+        </div>
+        <div class="section active" id="players-section">
             <h2>Players</h2>
             <form id="player-form">
                 <input type="hidden" id="player-id">
@@ -64,6 +73,15 @@
                 <input type="hidden" id="match-id">
                 <label for="match-start-time">Start Time (h:mm)</label>
                 <input type="text" id="match-start-time" pattern="^([0-9]{1,2}:[0-9]{2})$" placeholder="e.g. 8:30" style="width:7em;">
+                <label for="match-starting-hole">Starting Hole</label>
+                <select id="match-starting-hole">
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                    <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                    <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                    <option value="13">13</option><option value="14">14</option><option value="15">15</option>
+                    <option value="16">16</option><option value="17">17</option><option value="18">18</option>
+                </select>
                 <label for="match-format">Format</label>
                 <select id="match-format" required>
                     <option value="singles">Singles</option>

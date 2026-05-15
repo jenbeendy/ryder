@@ -37,6 +37,7 @@ func autoMigrate(db *sql.DB) {
 			status TEXT NOT NULL,
 			start_time TEXT,
 			holes TEXT DEFAULT '18',
+			starting_hole INTEGER DEFAULT 1,
 			FOREIGN KEY (team_a_id) REFERENCES teams(id),
 			FOREIGN KEY (team_b_id) REFERENCES teams(id)
 		);`,
@@ -74,6 +75,8 @@ func autoMigrate(db *sql.DB) {
 	_, _ = db.Exec("ALTER TABLE players ADD COLUMN hcp REAL;")
 	// Add holes column if not exists
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN holes TEXT DEFAULT '18';")
+	// Add starting_hole column if not exists
+	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN starting_hole INTEGER DEFAULT 1;")
 }
 
 func main() {

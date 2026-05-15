@@ -111,11 +111,12 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		HCP  float64 `json:"hcp"`
 	}
 	type Match struct {
-		ID        int    `json:"id"`
-		Format    string `json:"format"`
-		Holes     string `json:"holes"`
-		Status    string `json:"status"`
-		StartTime string `json:"start_time"`
+		ID           int    `json:"id"`
+		Format       string `json:"format"`
+		Holes        string `json:"holes"`
+		Status       string `json:"status"`
+		StartTime    string `json:"start_time"`
+		StartingHole int    `json:"starting_hole"`
 		TeamA     struct {
 			ID      int           `json:"id"`
 			Name    string        `json:"name"`
@@ -129,7 +130,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 			Players []MatchPlayer `json:"players"`
 		} `json:"team_b"`
 	}
-	rows, err := DB.Query(`SELECT m.id, m.format, m.holes, m.status, m.start_time, ta.id, ta.name, ta.color, tb.id, tb.name, tb.color FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id`)
+	rows, err := DB.Query(`SELECT m.id, m.format, m.holes, m.status, m.start_time, m.starting_hole, ta.id, ta.name, ta.color, tb.id, tb.name, tb.color FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id`)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -142,7 +143,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		var taName, tbName string
 		var tbColor, taColor string
 		var startTime string
-		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &startTime, &taID, &taName, &taColor, &tbID, &tbName, &tbColor); err != nil {
+		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &startTime, &m.StartingHole, &taID, &taName, &taColor, &tbID, &tbName, &tbColor); err != nil {
 			continue
 		}
 		m.TeamA.ID, m.TeamA.Name, m.TeamA.Color = taID, taName, taColor
@@ -361,20 +362,24 @@ func AssignPlayerToTeam(w http.ResponseWriter, r *http.Request) {
 // --- Match Handlers ---
 func AddMatch(w http.ResponseWriter, r *http.Request) {
 	type req struct {
-		Format    string `json:"format"`
-		Holes     string `json:"holes"`
-		TeamA     int    `json:"team_a"`
-		TeamB     int    `json:"team_b"`
-		PlayersA  []int  `json:"players_a"`
-		PlayersB  []int  `json:"players_b"`
-		StartTime string `json:"start_time"`
+		Format       string `json:"format"`
+		Holes        string `json:"holes"`
+		TeamA        int    `json:"team_a"`
+		TeamB        int    `json:"team_b"`
+		PlayersA     []int  `json:"players_a"`
+		PlayersB     []int  `json:"players_b"`
+		StartTime    string `json:"start_time"`
+		StartingHole int    `json:"starting_hole"`
 	}
 	var body req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time) VALUES (?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime)
+	if body.StartingHole < 1 || body.StartingHole > 18 {
+		body.StartingHole = 1
+	}
+	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole) VALUES (?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime, body.StartingHole)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -391,23 +396,27 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 
 func EditMatch(w http.ResponseWriter, r *http.Request) {
 	type req struct {
-		ID        int    `json:"id"`
-		Format    string `json:"format"`
-		Holes     string `json:"holes"`
-		TeamA     int    `json:"team_a"`
-		TeamB     int    `json:"team_b"`
-		PlayersA  []int  `json:"players_a"`
-		PlayersB  []int  `json:"players_b"`
-		StartTime string `json:"start_time"`
+		ID           int    `json:"id"`
+		Format       string `json:"format"`
+		Holes        string `json:"holes"`
+		TeamA        int    `json:"team_a"`
+		TeamB        int    `json:"team_b"`
+		PlayersA     []int  `json:"players_a"`
+		PlayersB     []int  `json:"players_b"`
+		StartTime    string `json:"start_time"`
+		StartingHole int    `json:"starting_hole"`
 	}
 	var body req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if body.StartingHole < 1 || body.StartingHole > 18 {
+		body.StartingHole = 1
+	}
 	// Update match details
-	_, err := DB.Exec(`UPDATE matches SET format=?, holes=?, team_a_id=?, team_b_id=?, start_time=? WHERE id=?`,
-		body.Format, body.Holes, body.TeamA, body.TeamB, body.StartTime, body.ID)
+	_, err := DB.Exec(`UPDATE matches SET format=?, holes=?, team_a_id=?, team_b_id=?, start_time=?, starting_hole=? WHERE id=?`,
+		body.Format, body.Holes, body.TeamA, body.TeamB, body.StartTime, body.StartingHole, body.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
