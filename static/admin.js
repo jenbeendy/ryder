@@ -8,6 +8,7 @@ window.editMatch = async function(matchId) {
     if (!match) return;
     // Populate form fields
     document.getElementById('match-id').value = match.id;
+    document.getElementById('match-date').value = match.match_date || '';
     document.getElementById('match-start-time').value = match.start_time || '';
     document.getElementById('match-starting-hole').value = match.starting_hole || 1;
     document.getElementById('match-format').value = match.format;
@@ -169,7 +170,8 @@ function renderMatches(matches) {
         const teamAPlayers = (m.team_a.players || []).map(p => `${p.name} (HCP: ${p.hcp ?? ''})`).join(', ');
         const teamBPlayers = (m.team_b.players || []).map(p => `${p.name} (HCP: ${p.hcp ?? ''})`).join(', ');
         const li = document.createElement('li');
-        li.innerHTML = `<span>${m.format.toUpperCase()} | Hole: ${m.starting_hole || 1} | ${m.team_a?.name || ''} [${teamAPlayers}] vs ${m.team_b?.name || ''} [${teamBPlayers}] | Status: ${m.status}</span>` +
+        const dateStr = m.match_date ? ` | ${m.match_date}` : '';
+        li.innerHTML = `<span>${m.format.toUpperCase()} | Hole: ${m.starting_hole || 1}${dateStr} | ${m.team_a?.name || ''} [${teamAPlayers}] vs ${m.team_b?.name || ''} [${teamBPlayers}] | Status: ${m.status}</span>` +
             `<span class="actions">
                 <button class="edit" onclick="editMatch(${m.id})">Edit</button>
                 <button onclick="removeMatch(${m.id})">Remove</button>
@@ -288,11 +290,12 @@ document.getElementById('match-form').onsubmit = async function(e) {
     const teamB = parseInt(document.getElementById('match-team-b').value);
     const playersA = Array.from(document.getElementById('match-players-a').selectedOptions).map(opt => parseInt(opt.value));
     const playersB = Array.from(document.getElementById('match-players-b').selectedOptions).map(opt => parseInt(opt.value));
+    const match_date = document.getElementById('match-date').value;
     const start_time = document.getElementById('match-start-time').value;
     const starting_hole = parseInt(document.getElementById('match-starting-hole').value) || 1;
     const id = document.getElementById('match-id').value;
     const url = id ? '/api/match/edit' : '/api/match/add';
-    const payload = { format, holes, team_a: teamA, team_b: teamB, players_a: playersA, players_b: playersB, start_time, starting_hole };
+    const payload = { format, holes, team_a: teamA, team_b: teamB, players_a: playersA, players_b: playersB, start_time, starting_hole, match_date };
     if (id) payload.id = parseInt(id);
     await fetch(url, {
         method: 'POST',

@@ -76,9 +76,12 @@ function matchRow(m) {
     console.log('Rendering match:', m);
     // Split players and score into columns for alignment
     let startTimeHtml = '';
-    if (m.status === 'prepared' && m.start_time) {
-        startTimeHtml = `<span class='match-start-time' style="display:block; font-size:1.1em; color:#2563eb; font-weight:600; margin-bottom:0.2em;">${m.start_time}</span>`;
-    }else {
+    if (m.status === 'prepared') {
+        let preparedInfo = '';
+        if (m.match_date) preparedInfo += `<span style="display:block; font-size:0.85em; color:#555; font-weight:500;">${m.match_date}</span>`;
+        if (m.start_time) preparedInfo += `<span style="display:block; font-size:1.1em; color:#2563eb; font-weight:600;">${m.start_time}</span>`;
+        startTimeHtml = `<span class='match-start-time'>${preparedInfo}</span>`;
+    } else {
         startTimeHtml = `<span class='match-score'>${scoreHtml}</span>`;
     }
     return `<li><span class="match-link" onclick="goToScore(${m.id})">
