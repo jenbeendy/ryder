@@ -124,10 +124,19 @@ function getDisplayedHoleIndices() {
     return result;
 }
 
+function teamLabel(team) {
+    if (team.players && team.players.length > 0) {
+        return team.players.map(p => p.name).join(' / ');
+    }
+    return team.name;
+}
+
 function renderHoles() {
     const holesDiv = document.getElementById('holes-list');
     holesDiv.innerHTML = '';
     const holeIndices = getDisplayedHoleIndices();
+    const labelA = teamLabel(currentMatch.team_a);
+    const labelB = teamLabel(currentMatch.team_b);
     for (let pos = 0; pos < holeIndices.length; pos++) {
         const i = holeIndices[pos];
         // Add divider at wrap point (when index goes from higher to lower)
@@ -143,9 +152,9 @@ function renderHoles() {
         row.className = 'hole-row';
         row.innerHTML = `<span class="hole-label">${i+1}</span>` +
             `<span class="hole-score">
-            <button type="button" class="hole-btn" data-hole="${i}" data-val="A">${currentMatch.team_a.name}</button>
+            <button type="button" class="hole-btn" data-hole="${i}" data-val="A">${labelA}</button>
             <button type="button" class="hole-btn" data-hole="${i}" data-val="AS">A/S</button>
-            <button type="button" class="hole-btn" data-hole="${i}" data-val="B">${currentMatch.team_b.name}</button>
+            <button type="button" class="hole-btn" data-hole="${i}" data-val="B">${labelB}</button>
             </span>`;
         holesDiv.appendChild(row);
     }
@@ -203,8 +212,8 @@ function updateMatchScoreDisplay() {
         if (!holeResults[i]) holesLeft++;
     }
     let scoreText = '';
-    if (aUp > bUp) scoreText = `${currentMatch.team_a.name} ${aUp-bUp} Up`;
-    else if (bUp > aUp) scoreText = `${currentMatch.team_b.name} ${bUp-aUp} Up`;
+    if (aUp > bUp) scoreText = `${teamLabel(currentMatch.team_a)} ${aUp-bUp} Up`;
+    else if (bUp > aUp) scoreText = `${teamLabel(currentMatch.team_b)} ${bUp-aUp} Up`;
     else scoreText = 'All Square';
     scoreText += `  (Zbývá ${holesLeft})`;
     document.getElementById('match-score').textContent = scoreText;

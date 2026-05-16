@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type Player struct {
@@ -524,7 +525,17 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		var name string
 		var color string
 		teamRows.Scan(&id, &name, &color)
-		teams = append(teams, map[string]interface{}{"id": id, "name": name, "score": 0.0, "color": color})
+		teamPlayers := []string{}
+		tpRows, tpErr := DB.Query(`SELECT p.name FROM players p JOIN team_players tp ON p.id=tp.player_id WHERE tp.team_id=? ORDER BY p.name`, id)
+		if tpErr == nil {
+			for tpRows.Next() {
+				var pname string
+				tpRows.Scan(&pname)
+				teamPlayers = append(teamPlayers, pname)
+			}
+			tpRows.Close()
+		}
+		teams = append(teams, map[string]interface{}{"id": id, "name": name, "score": 0.0, "color": color, "players": teamPlayers})
 		teamScores[id] = 0.0
 		projectedScores[id] = 0.0
 		teamNames[id] = name
@@ -630,10 +641,32 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 				}
 				m["score_a"] = a
 				m["score_b"] = b
+				playerLabel := func(players interface{}) string {
+					if ps, ok := players.([]map[string]interface{}); ok && len(ps) > 0 {
+						names := make([]string, 0, len(ps))
+						for _, p := range ps {
+							if n, ok2 := p["name"].(string); ok2 {
+								names = append(names, n)
+							}
+						}
+						if len(names) > 0 {
+							return strings.Join(names, " / ")
+						}
+					}
+					return ""
+				}
+				labelA := playerLabel(m["players_a"])
+				if labelA == "" {
+					labelA = teamNames[ta]
+				}
+				labelB := playerLabel(m["players_b"])
+				if labelB == "" {
+					labelB = teamNames[tb]
+				}
 				if a > b {
-					m["score_text"] = fmt.Sprintf("%s %d Up", teamNames[ta], a-b)
+					m["score_text"] = fmt.Sprintf("%s %d Up", labelA, a-b)
 				} else if b > a {
-					m["score_text"] = fmt.Sprintf("%s %d Up", teamNames[tb], b-a)
+					m["score_text"] = fmt.Sprintf("%s %d Up", labelB, b-a)
 				} else {
 					m["score_text"] = "A/S"
 				}
