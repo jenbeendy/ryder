@@ -755,20 +755,32 @@ func SaveHoleResults(w http.ResponseWriter, r *http.Request) {
 
 func LoadHoleResults(w http.ResponseWriter, r *http.Request) {
 	matchID := r.URL.Query().Get("match_id")
-	rows, err := DB.Query("SELECT hole, result FROM hole_results WHERE match_id=?", matchID)
+	rows, err := DB.Query("SELECT hole, result FROM hole_results WHERE match_id=? ORDER BY hole", matchID)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 	defer rows.Close()
-	holes := make([]string, 18)
+	type holeRow struct {
+		hole   int
+		result string
+	}
+	var collected []holeRow
+	maxHole := 18
 	for rows.Next() {
 		var hole int
 		var result string
 		rows.Scan(&hole, &result)
-		if hole >= 1 && hole <= 18 {
-			holes[hole-1] = result
+		if hole >= 1 {
+			collected = append(collected, holeRow{hole, result})
+			if hole > maxHole {
+				maxHole = hole
+			}
 		}
+	}
+	holes := make([]string, maxHole)
+	for _, hr := range collected {
+		holes[hr.hole-1] = hr.result
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"holes": holes})

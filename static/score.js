@@ -124,6 +124,31 @@ function getDisplayedHoleIndices() {
     return result;
 }
 
+// Returns how many playoff holes to show (0 = no playoff yet or match decided by regular holes).
+// Playoff holes live at holeResults indices 18, 19, 20...
+function getPlayoffHolesCount() {
+    const regularIndices = getDisplayedHoleIndices();
+    const allRegularPlayed = regularIndices.every(i => holeResults[i] != null && holeResults[i] !== '');
+    if (!allRegularPlayed) return 0;
+
+    let aUp = 0, bUp = 0;
+    for (const i of regularIndices) {
+        if (holeResults[i] === 'A') aUp++;
+        else if (holeResults[i] === 'B') bUp++;
+    }
+    if (aUp !== bUp) return 0; // Regular holes decided the match
+
+    let p = 0;
+    while (true) {
+        const result = holeResults[18 + p];
+        if (result == null || result === '') return p + 1; // Show this unplayed hole
+        if (result === 'A') aUp++;
+        else if (result === 'B') bUp++;
+        p++;
+        if (aUp !== bUp) return p; // Decided — show played holes but no more
+    }
+}
+
 function teamLabel(team) {
     if (team.players && team.players.length > 0) {
         return team.players.map(p => p.name).join(' / ');
@@ -158,19 +183,43 @@ function renderHoles() {
             </span>`;
         holesDiv.appendChild(row);
     }
+    // Playoff holes
+    const playoffCount = getPlayoffHolesCount();
+    if (playoffCount > 0) {
+        const divider = document.createElement('div');
+        divider.className = 'hole-row';
+        divider.style.cssText = 'background:transparent; border:none; justify-content:center; font-weight:700; color:#2563eb; font-size:1.05em; border-top:2px solid #2563eb; margin-top:0.5rem; padding-top:0.7rem;';
+        divider.textContent = 'Rozstřel';
+        holesDiv.appendChild(divider);
+        for (let p = 0; p < playoffCount; p++) {
+            const idx = 18 + p;
+            const label = (p % 18) + 1;
+            const row = document.createElement('div');
+            row.className = 'hole-row';
+            row.innerHTML = `<span class="hole-label">${label}</span>` +
+                `<span class="hole-score">
+                <button type="button" class="hole-btn" data-hole="${idx}" data-val="A">${labelA}</button>
+                <button type="button" class="hole-btn" data-hole="${idx}" data-val="AS">A/S</button>
+                <button type="button" class="hole-btn" data-hole="${idx}" data-val="B">${labelB}</button>
+                </span>`;
+            holesDiv.appendChild(row);
+        }
+    }
+
     if (sEnabled) {
         document.querySelectorAll('.hole-btn').forEach(btn => {
             btn.onclick = function() {
                 const hole = parseInt(this.getAttribute('data-hole'));
                 const val = this.getAttribute('data-val');
-                holeResults[hole] = (holeResults[hole] === val) ? undefined : val;
-                updateHoleButtons(hole);
+                holeResults[hole] = (holeResults[hole] === val) ? null : val;
+                renderHoles();
                 updateMatchScoreDisplay();
                 saveHoleResults();
             };
         });
     }
     for (const i of holeIndices) updateHoleButtons(i);
+    for (let p = 0; p < playoffCount; p++) updateHoleButtons(18 + p);
 }
 
 function updateHoleButtons(hole) {
@@ -211,11 +260,21 @@ function updateMatchScoreDisplay() {
         else if (holeResults[i] === 'B') bUp++;
         if (!holeResults[i]) holesLeft++;
     }
+    const playoffCount = getPlayoffHolesCount();
+    for (let p = 0; p < playoffCount; p++) {
+        const r = holeResults[18 + p];
+        if (r === 'A') aUp++;
+        else if (r === 'B') bUp++;
+    }
     let scoreText = '';
     if (aUp > bUp) scoreText = `${teamLabel(currentMatch.team_a)} ${aUp-bUp} Up`;
     else if (bUp > aUp) scoreText = `${teamLabel(currentMatch.team_b)} ${bUp-aUp} Up`;
     else scoreText = 'All Square';
-    scoreText += `  (Zbývá ${holesLeft})`;
+    if (playoffCount > 0) {
+        scoreText += '  (Rozstřel)';
+    } else {
+        scoreText += `  (Zbývá ${holesLeft})`;
+    }
     document.getElementById('match-score').textContent = scoreText;
 }
 
@@ -268,7 +327,8 @@ async function loadHoleResults() {
     if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.holes)) {
-            holeResults = data.holes;
+            holeResults = data.holes.map(v => v || null);
+            while (holeResults.length < 18) holeResults.push(null);
         }
     }
 }
