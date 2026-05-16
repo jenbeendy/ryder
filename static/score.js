@@ -113,21 +113,25 @@ async function loadMatchStatus() {
     }
 }
 
+function getDisplayedHoleIndices() {
+    const startHole = (currentMatch && currentMatch.starting_hole) ? currentMatch.starting_hole : 1;
+    const startIdx = startHole - 1;
+    const count = (currentMatch && currentMatch.holes === '9') ? 9 : 18;
+    const result = [];
+    for (let n = 0; n < count; n++) {
+        result.push((startIdx + n) % 18);
+    }
+    return result;
+}
+
 function renderHoles() {
     const holesDiv = document.getElementById('holes-list');
     holesDiv.innerHTML = '';
-    // Determine which holes to show based on match type
-    let start = 0, end = 18, showDivider = false;
-    if (currentMatch && currentMatch.holes === 'front9') {
-        start = 0; end = 9; showDivider = false;
-    } else if (currentMatch && currentMatch.holes === 'back9') {
-        start = 9; end = 18; showDivider = false;
-    } else {
-        showDivider = true;
-    }
-    for (let i = start; i < end; i++) {
-        if (showDivider && i === 9) {
-            // Add empty row for visual division after 9th hole
+    const holeIndices = getDisplayedHoleIndices();
+    for (let pos = 0; pos < holeIndices.length; pos++) {
+        const i = holeIndices[pos];
+        // Add divider at wrap point (when index goes from higher to lower)
+        if (pos > 0 && i < holeIndices[pos - 1]) {
             const emptyRow = document.createElement('div');
             emptyRow.className = 'hole-row hole-divider';
             emptyRow.style.height = '1.5em';
@@ -150,20 +154,14 @@ function renderHoles() {
             btn.onclick = function() {
                 const hole = parseInt(this.getAttribute('data-hole'));
                 const val = this.getAttribute('data-val');
-                if (holeResults[hole] === val) {
-                    // Unset if already selected
-                    holeResults[hole] = undefined;
-                } else {
-                    holeResults[hole] = val;
-                }
+                holeResults[hole] = (holeResults[hole] === val) ? undefined : val;
                 updateHoleButtons(hole);
                 updateMatchScoreDisplay();
                 saveHoleResults();
             };
         });
-    }   
-    // Restore selection if any
-    for (let i = start; i < end; i++) updateHoleButtons(i);
+    }
+    for (const i of holeIndices) updateHoleButtons(i);
 }
 
 function updateHoleButtons(hole) {
@@ -178,7 +176,7 @@ function updateHoleButtons(hole) {
     }
     document.querySelectorAll(`.hole-btn[data-hole="${hole}"]`).forEach(btn => {
         const val = btn.getAttribute('data-val');
-        // btn.classList.remove('selected');
+        btn.classList.remove('selected');
         btn.style.background = '';
         btn.style.color = '';
         if (val === holeResults[hole]) {
@@ -197,27 +195,17 @@ function updateHoleButtons(hole) {
 }
 
 function updateMatchScoreDisplay() {
-    // Calculate up/down or A/S
-    let aUp = 0, bUp = 0;
-    let start = 0, end = 18;
-    if (currentMatch && currentMatch.holes === 'front9') {
-        start = 0; end = 9;
-    } else if (currentMatch && currentMatch.holes === 'back9') {
-        start = 9; end = 18;
-    }
-    for (let i = start; i < end; i++) {
+    let aUp = 0, bUp = 0, holesLeft = 0;
+    const holeIndices = getDisplayedHoleIndices();
+    for (const i of holeIndices) {
         if (holeResults[i] === 'A') aUp++;
         else if (holeResults[i] === 'B') bUp++;
+        if (!holeResults[i]) holesLeft++;
     }
     let scoreText = '';
     if (aUp > bUp) scoreText = `${currentMatch.team_a.name} ${aUp-bUp} Up`;
     else if (bUp > aUp) scoreText = `${currentMatch.team_b.name} ${bUp-aUp} Up`;
     else scoreText = 'All Square';
-    // Count holes still to play
-    let holesLeft = 0;
-    for (let i = start; i < end; i++) {
-        if (!holeResults[i]) holesLeft++;
-    }
     scoreText += `  (Zbývá ${holesLeft})`;
     document.getElementById('match-score').textContent = scoreText;
 }
@@ -378,11 +366,8 @@ function renderMatchTitle() {
     const title = document.getElementById('match-title');
     if (!title || !currentMatch) return;
     let typeText = '';
-    // Czech translation for holes type
-    if (currentMatch.holes === 'front9') {
-        typeText = 'První 9';
-    } else if (currentMatch.holes === 'back9') {
-        typeText = 'Druhá 9';
+    if (currentMatch.holes === '9') {
+        typeText = '9 jamek';
     } else {
         typeText = '18 jamek';
     }

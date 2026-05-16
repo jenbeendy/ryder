@@ -530,15 +530,16 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		teamNames[id] = name
 	}
 	// 2. Get all finished matches and accumulate scores
-	matchRows, _ := DB.Query("SELECT id, team_a_id, team_b_id, status, start_time FROM matches")
+	matchRows, _ := DB.Query("SELECT id, team_a_id, team_b_id, status, start_time, starting_hole FROM matches")
 	defer matchRows.Close()
 	matches := []map[string]interface{}{}
 	for matchRows.Next() {
 		var id, ta, tb int
 		var status string
 		var startTime string
-		matchRows.Scan(&id, &ta, &tb, &status, &startTime)
-		m := map[string]interface{}{"id": id, "team_a_id": ta, "team_b_id": tb, "status": status, "team_a_name": teamNames[ta], "team_b_name": teamNames[tb], "start_time": startTime}
+		var startingHole int
+		matchRows.Scan(&id, &ta, &tb, &status, &startTime, &startingHole)
+		m := map[string]interface{}{"id": id, "team_a_id": ta, "team_b_id": tb, "status": status, "team_a_name": teamNames[ta], "team_b_name": teamNames[tb], "start_time": startTime, "starting_hole": startingHole}
 		// Add player names and HCPs for each team
 		paRows, err := DB.Query(`SELECT p.name, p.hcp FROM match_players mp JOIN players p ON mp.player_id=p.id WHERE mp.match_id=? AND mp.team_side='A'`, id)
 		if err != nil {
@@ -685,6 +686,7 @@ func HandleMainPage(w http.ResponseWriter, r *http.Request) {
 	}
 	// Serve static assets (JS, CSS, etc.)
 	if len(r.URL.Path) > 8 && r.URL.Path[:8] == "/static/" {
+		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
 		http.ServeFile(w, r, "."+r.URL.Path)
 		return
 	}

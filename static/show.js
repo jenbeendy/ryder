@@ -209,12 +209,12 @@ function showMatchRow(m) {
     let scoreHtml = '';
     let holesLeft = null;
     if (m.status === 'running' && m.holeResults && m.holes) {
-        let start = 0, end = 18;
-        if (m.holes === 'front9') { start = 0; end = 9; }
-        else if (m.holes === 'back9') { start = 9; end = 18; }
+        const startHole = m.starting_hole || 1;
+        const holeCount = m.holes === '9' ? 9 : 18;
         let count = 0;
-        for (let i = start; i < end; i++) {
-            if (!m.holeResults[i]) count++;
+        for (let n = 0; n < holeCount; n++) {
+            const idx = (startHole - 1 + n) % 18;
+            if (!m.holeResults[idx]) count++;
         }
         holesLeft = count;
     }
