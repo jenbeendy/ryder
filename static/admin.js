@@ -3,6 +3,7 @@ let allPlayers = [];
 let allMatches = [];
 let matchFilterStatus = 'all';
 let matchFilterFormat = 'all';
+let playerFilterTeam = 'all';
 let selectedPlayersA = [];
 let selectedPlayersB = [];
 
@@ -11,13 +12,39 @@ async function fetchPlayers() {
     const res = await fetch('/api/player/list');
     if (!res.ok) return;
     const data = await res.json();
-    renderPlayers(data.players || []);
+    allPlayers = data.players || [];
+    renderPlayerFilterBar(allPlayers);
+    renderPlayers(allPlayers);
+}
+
+function renderPlayerFilterBar(players) {
+    const bar = document.getElementById('players-filter-bar');
+    const btns = document.getElementById('players-filter-btns');
+    const teams = [];
+    const seen = new Set();
+    players.forEach(p => {
+        if (p.team_id && p.team_name && !seen.has(p.team_id)) {
+            seen.add(p.team_id);
+            teams.push({ id: p.team_id, name: p.team_name });
+        }
+    });
+    if (teams.length === 0) { bar.style.display = 'none'; return; }
+    bar.style.display = '';
+    btns.innerHTML = `<button class="filter-btn${playerFilterTeam === 'all' ? ' active' : ''}" onclick="setPlayerFilter('all')">All</button>` +
+        teams.map(t => `<button class="filter-btn${playerFilterTeam == t.id ? ' active' : ''}" onclick="setPlayerFilter(${t.id})">${t.name}</button>`).join('');
+}
+
+function setPlayerFilter(teamId) {
+    playerFilterTeam = teamId;
+    renderPlayerFilterBar(allPlayers);
+    renderPlayers(allPlayers);
 }
 
 function renderPlayers(players) {
+    const filtered = playerFilterTeam === 'all' ? players : players.filter(p => p.team_id == playerFilterTeam);
     const ul = document.getElementById('players-list');
     ul.innerHTML = '';
-    players.forEach(p => {
+    filtered.forEach(p => {
         const hcp = p.hcp !== undefined && p.hcp !== null ? `, HCP: ${p.hcp}` : '';
         const team = p.team_name ? `, Team: ${p.team_name}` : '';
         const playerData = JSON.stringify({
