@@ -72,7 +72,7 @@ async function fetchMatches() {
 async function showMatchScoreSection() {
     if (!currentMatch) return;
     function teamLogoSlug(name) {
-        return name.toLowerCase().replace(/\s+/g, '_');
+        return name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, '_');
     }
     function teamHtml(team) {
         const slug = teamLogoSlug(team.name);
