@@ -26,9 +26,64 @@
         .actions button.edit { background: #38a169; }
         .actions button.edit:hover { background: #276749; }
         .actions button:hover { background: #9b2c2c; }
+        /* Match cards */
+        #matches-list { display: flex; flex-direction: column; gap: 10px; margin-top: 1.25rem; }
+        .match-card { background: #f8faff; border: 1px solid #dbeafe; border-radius: 10px; padding: 0.9rem 1rem; }
+        .match-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; }
+        .match-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+        .match-badge { font-size: 0.72rem; font-weight: 700; padding: 2px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .match-badge.format-singles { background: #ede9fe; color: #6d28d9; }
+        .match-badge.format-foursome { background: #fef3c7; color: #92400e; }
+        .match-badge.format-texas_scramble { background: #d1fae5; color: #065f46; }
+        .match-badge.status-prepared { background: #e5e7eb; color: #374151; }
+        .match-badge.status-running { background: #dcfce7; color: #166534; }
+        .match-badge.status-completed { background: #f3f4f6; color: #6b7280; }
+        .match-meta { font-size: 0.82rem; color: #6b7280; }
+        .match-teams { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 0.65rem; }
+        .match-team { flex: 1; min-width: 0; }
+        .match-team-right { text-align: right; }
+        .match-team-name { font-weight: 700; color: #1e40af; font-size: 0.92rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .match-players { font-size: 0.8rem; color: #4b5563; line-height: 1.4; }
+        .match-vs { font-weight: 700; color: #9ca3af; font-size: 0.88rem; padding-top: 2px; flex-shrink: 0; align-self: center; }
+        .match-card-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+        .match-card-actions button { font-size: 0.8rem; padding: 4px 11px; margin: 0; }
+        .match-card-actions button.danger { background: #e53e3e; }
+        .match-card-actions button.danger:hover { background: #9b2c2c; }
+        /* Filter bar */
+        .matches-filter-bar { display: flex; flex-direction: column; gap: 7px; background: #f0f6ff; border: 1px solid #dbeafe; border-radius: 8px; padding: 9px 12px; margin-top: 1.2rem; }
+        .filter-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .filter-label { font-size: 0.78rem; font-weight: 600; color: #6b7280; min-width: 52px; }
+        .filter-btn { background: #e5e7eb; color: #374151; border: none; border-radius: 14px; padding: 3px 11px; font-size: 0.78rem; font-weight: 600; cursor: pointer; margin: 0; }
+        .filter-btn:hover { background: #dbeafe; color: #1e40af; }
+        .filter-btn.active { background: #2563eb; color: #fff; }
+        .filter-btn.active:hover { background: #1741a6; }
         @media (max-width: 700px) { .admin-container { padding: 1rem 0.2rem; } }
         #score-modal { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); align-items:center; justify-content:center; }
         #score-modal > div { background:#fff; padding:2rem; border-radius:12px; min-width:300px; max-width:90vw; }
+        /* Template bar */
+        #template-bar { margin-bottom: 1rem; }
+        .template-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0.5rem; }
+        .template-pill { display: inline-flex; align-items: center; background: #dbeafe; border-radius: 20px; overflow: hidden; }
+        .template-pill .template-apply { background: none; color: #1e40af; font-size: 0.85rem; padding: 4px 10px; border: none; border-radius: 0; font-weight: 600; cursor: pointer; margin: 0; }
+        .template-pill .template-apply:hover { background: #bfdbfe; }
+        .template-pill .template-delete { background: none; color: #6b7280; font-size: 1rem; padding: 2px 8px 2px 0; border: none; cursor: pointer; margin: 0; font-weight: 700; line-height: 1; }
+        .template-pill .template-delete:hover { color: #e53e3e; background: none; }
+        .template-save-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .template-save-row button { font-size: 0.85rem; padding: 4px 12px; margin: 0; }
+        .template-save-row input[type="text"] { display: inline-block; width: auto; margin: 0; padding: 4px 8px; font-size: 0.85rem; }
+        /* Typeahead */
+        .typeahead-widget { position: relative; margin-bottom: 0.7rem; }
+        .typeahead-input { width: 100%; box-sizing: border-box; margin: 0; }
+        .typeahead-dropdown { position: absolute; z-index: 100; background: #fff; border: 1px solid #bbb; border-radius: 6px; max-height: 200px; overflow-y: auto; width: 100%; margin: 0; padding: 0; list-style: none; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+        .typeahead-dropdown.hidden { display: none; }
+        .typeahead-dropdown li { padding: 0.4rem 0.8rem; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; }
+        .typeahead-dropdown li:last-child { border-bottom: none; }
+        .typeahead-dropdown li:hover, .typeahead-dropdown li.highlighted { background: #dbeafe; }
+        .player-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+        .player-tag { background: #dbeafe; color: #1e40af; border-radius: 12px; padding: 3px 10px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px; }
+        .tag-remove { background: none; border: none; cursor: pointer; color: #6b7280; font-size: 1.1em; padding: 0; margin: 0; font-weight: 700; line-height: 1; }
+        .tag-remove:hover { color: #e53e3e; background: none; }
+        .team-warning { color: #d97706; font-size: 0.82rem; margin: -0.4rem 0 0.4rem 0; }
     </style>
 </head>
 <body>
@@ -69,6 +124,7 @@
         </div>
         <div class="section" id="matches-section">
             <h2>Matches</h2>
+            <div id="template-bar"></div>
             <form id="match-form">
                 <input type="hidden" id="match-id">
                 <label for="match-start-time">Start Time (h:mm)</label>
@@ -97,13 +153,37 @@
                 <select id="match-team-a" required></select>
                 <label for="match-team-b">Team B</label>
                 <select id="match-team-b" required></select>
-                <label for="match-players-a">Players for Team A</label>
-                <select id="match-players-a" multiple required></select>
-                <label for="match-players-b">Players for Team B</label>
-                <select id="match-players-b" multiple required></select>
+                <label>Players for Team A</label>
+                <div class="typeahead-widget" id="typeahead-a">
+                    <div class="player-tags" id="tags-a"></div>
+                    <input type="text" id="input-a" class="typeahead-input" placeholder="Type player name…" autocomplete="off">
+                    <ul class="typeahead-dropdown hidden" id="dropdown-a"></ul>
+                </div>
+                <label>Players for Team B</label>
+                <div class="typeahead-widget" id="typeahead-b">
+                    <div class="player-tags" id="tags-b"></div>
+                    <input type="text" id="input-b" class="typeahead-input" placeholder="Type player name…" autocomplete="off">
+                    <ul class="typeahead-dropdown hidden" id="dropdown-b"></ul>
+                </div>
                 <button type="submit">Add Match</button>
             </form>
-            <ul id="matches-list"></ul>
+            <div class="matches-filter-bar">
+                <div class="filter-group">
+                    <span class="filter-label">Status:</span>
+                    <button class="filter-btn active" data-filter-status="all" onclick="setMatchFilter('status','all')">All</button>
+                    <button class="filter-btn" data-filter-status="prepared" onclick="setMatchFilter('status','prepared')">Prepared</button>
+                    <button class="filter-btn" data-filter-status="running" onclick="setMatchFilter('status','running')">Running</button>
+                    <button class="filter-btn" data-filter-status="completed" onclick="setMatchFilter('status','completed')">Completed</button>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Format:</span>
+                    <button class="filter-btn active" data-filter-format="all" onclick="setMatchFilter('format','all')">All</button>
+                    <button class="filter-btn" data-filter-format="singles" onclick="setMatchFilter('format','singles')">Singles</button>
+                    <button class="filter-btn" data-filter-format="foursome" onclick="setMatchFilter('format','foursome')">Foursome</button>
+                    <button class="filter-btn" data-filter-format="texas_scramble" onclick="setMatchFilter('format','texas_scramble')">Texas Scramble</button>
+                </div>
+            </div>
+            <div id="matches-list"></div>
             <div id="score-modal">
               <div>
                 <h3>Enter Match Score</h3>
