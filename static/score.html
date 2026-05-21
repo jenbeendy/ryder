@@ -18,19 +18,25 @@
             margin-bottom: 1rem;
             gap: 2rem;
         }
-        #team-a{
-            display: block;
-            text-align: left;
-            white-space: pre-line;
-            font-size: 1.08em;
-            line-height: 1.5em;
+        #team-a, #team-b {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            flex: 1;
         }
-        #team-b {
-            display: block;
-            text-align: right;
-            white-space: pre-line;
-            font-size: 1.08em;
-            line-height: 1.5em;
+        #team-a { align-items: flex-start; }
+        #team-b { align-items: flex-end; }
+        .team-label-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1741a6;
+            letter-spacing: 0.01em;
+        }
+        .team-label-player {
+            font-size: 0.88rem;
+            color: #555;
+            font-weight: 400;
+            line-height: 1.4;
         }
         .score { text-align: center; font-size: 1.2rem; margin-bottom: 1.5rem; }
         .holes { display: flex; flex-direction: column; gap: 1rem; }

@@ -71,10 +71,12 @@ async function fetchMatches() {
 
 async function showMatchScoreSection() {
     if (!currentMatch) return;
-    document.getElementById('team-a').innerHTML = `<strong>${currentMatch.team_a.name}</strong><br>` +
-        currentMatch.team_a.players.map(p => p.name).join('<br>');
-    document.getElementById('team-b').innerHTML = `<strong>${currentMatch.team_b.name}</strong><br>` +
-        currentMatch.team_b.players.map(p => p.name).join('<br>');
+    function teamHtml(team) {
+        const players = team.players.map(p => `<span class="team-label-player">${p.name}</span>`).join('');
+        return `<span class="team-label-name">${team.name}</span>${players}`;
+    }
+    document.getElementById('team-a').innerHTML = teamHtml(currentMatch.team_a);
+    document.getElementById('team-b').innerHTML = teamHtml(currentMatch.team_b);
     // Load hole results and match status from DB
     await loadHoleResults();
     await loadMatchStatus();
