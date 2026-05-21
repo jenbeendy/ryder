@@ -106,6 +106,7 @@ async function showMatchScoreSection() {
                 }
             } else {
                 await setMatchStatus('completed');
+                window.location.href = '/dashboard';
             }
         };
     }
