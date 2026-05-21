@@ -26,6 +26,23 @@
         }
         #team-a { align-items: flex-start; }
         #team-b { align-items: flex-end; }
+        #team-b .team-label-wrap { flex-direction: row-reverse; }
+        .team-label-wrap {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .team-label-players {
+            display: flex;
+            flex-direction: column;
+        }
+        .team-label-logo {
+            height: 48px;
+            width: 48px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
         .team-label-name {
             font-size: 1.1rem;
             font-weight: 700;

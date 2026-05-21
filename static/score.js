@@ -71,9 +71,17 @@ async function fetchMatches() {
 
 async function showMatchScoreSection() {
     if (!currentMatch) return;
+    function teamLogoSlug(name) {
+        return name.toLowerCase().replace(/\s+/g, '_');
+    }
     function teamHtml(team) {
+        const slug = teamLogoSlug(team.name);
         const players = team.players.map(p => `<span class="team-label-player">${p.name}</span>`).join('');
-        return `<span class="team-label-name">${team.name}</span>${players}`;
+        return `<div class="team-label-wrap">`
+            + `<img src="/img/${slug}.png" alt="${team.name}" class="team-label-logo" onerror="this.style.display='none';this.nextElementSibling.style.display=''">`
+            + `<span class="team-label-name" style="display:none">${team.name}</span>`
+            + `<div class="team-label-players">${players}</div>`
+            + `</div>`;
     }
     document.getElementById('team-a').innerHTML = teamHtml(currentMatch.team_a);
     document.getElementById('team-b').innerHTML = teamHtml(currentMatch.team_b);
