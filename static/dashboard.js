@@ -35,7 +35,7 @@ function renderTeams(teams, projectedScores) {
         if (projectedScores && projectedScores[t.id] !== undefined && projectedScores[t.id] !== t.score) {
             proj = ` <span class="projected-score" style="color:${textColor};">(${projectedScores[t.id]})</span>`;
         }
-        div.innerHTML += `<div class="team" style="background:${t.color};color:${textColor};">${t.name}: <b>${t.score}</b>${proj}</div>`;
+        div.innerHTML += `<div class="team" style="background:${t.color};color:${textColor};"><span class="team-name">${t.name}</span><b class="team-score">${t.score}${proj}</b></div>`;
     });
 }
 
