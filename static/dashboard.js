@@ -101,7 +101,7 @@ function matchRow(m) {
     console.log('Rendering match:', m);
     // Split players and score into columns for alignment
     let startTimeHtml = '';
-    if (m.status === 'prepared' && m.start_time) {
+    if (m.status === 'prepared' && m.start_time && m.format !== 'foursome') {
         startTimeHtml = `<span class='match-start-time' style="display:block; font-size:1.1em; color:#1741a6; font-weight:600; margin-bottom:0.2em;">${m.start_time}</span>`;
     }else {
         startTimeHtml = `<span class='match-score'>${scoreHtml}</span>`;
