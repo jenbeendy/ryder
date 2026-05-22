@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type Player struct {
@@ -117,7 +119,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		Status       string `json:"status"`
 		StartTime    string `json:"start_time"`
 		StartingHole int    `json:"starting_hole"`
-		TeamA     struct {
+		TeamA        struct {
 			ID      int           `json:"id"`
 			Name    string        `json:"name"`
 			Color   string        `json:"color"`
@@ -379,8 +381,16 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 	if body.StartingHole < 1 || body.StartingHole > 18 {
 		body.StartingHole = 1
 	}
+
+	randInt := func(min, max int) int {
+		return min + int(time.Now().UnixNano())%(max-min+1)
+	}
+
+	time.Sleep(time.Duration(randInt(10, 100)) * time.Millisecond)
+
 	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole) VALUES (?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime, body.StartingHole)
 	if err != nil {
+		log.Printf("AddMatch error: %v | payload: %+v", err, body)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

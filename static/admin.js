@@ -309,6 +309,7 @@ window.applyTemplate = function(id) {
     document.getElementById('match-start-time').value = tpl.start_time || '';
     document.getElementById('match-starting-hole').value = tpl.starting_hole || 1;
     enforcePlayerCapacity();
+    updateFoursomeAutoRow();
 };
 
 window.deleteTemplateAndRefresh = function(id) {
@@ -540,9 +541,24 @@ function createTypeahead(inputId, dropdownId, tagsId, side) {
     });
 }
 
+function updateFoursomeAutoRow() {
+    const format = document.getElementById('match-format').value;
+    const holes = document.getElementById('match-holes').value;
+    const row = document.getElementById('foursome-auto-row');
+    const cb = document.getElementById('match-also-foursome');
+    const show = format === 'texas_scramble' && holes === '9';
+    row.style.display = show ? 'flex' : 'none';
+    if (!show) cb.checked = false;
+}
+
 // --- Match format change ---
 document.getElementById('match-format').onchange = function() {
     enforcePlayerCapacity();
+    updateFoursomeAutoRow();
+};
+
+document.getElementById('match-holes').onchange = function() {
+    updateFoursomeAutoRow();
 };
 
 function addTwoHours(timeStr) {
@@ -599,6 +615,7 @@ window.editMatch = async function(matchId) {
     renderTags('a');
     renderTags('b');
 
+    updateFoursomeAutoRow();
     document.querySelector('#match-form button[type="submit"]').textContent = 'Save Match';
 };
 
@@ -641,13 +658,15 @@ document.getElementById('match-form').onsubmit = async function(e) {
             body: JSON.stringify(foursomePayload)
         });
     }
-    this.reset();
     selectedPlayersA = [];
     selectedPlayersB = [];
     renderTags('a');
     renderTags('b');
+    document.getElementById('input-a').value = '';
+    document.getElementById('input-b').value = '';
     fetchMatches();
     populateMatchForm();
+    updateFoursomeAutoRow();
     document.querySelector('#match-form button[type="submit"]').textContent = 'Add Match';
     document.getElementById('match-id').value = '';
 };
@@ -703,6 +722,7 @@ window.onload = async function() {
     fetchAndRenderVisibility();
     document.querySelector('#player-form button').textContent = 'Add Player';
     document.querySelector('#team-form button').textContent = 'Add Team';
+    updateFoursomeAutoRow();
     document.querySelector('#match-form button[type="submit"]').textContent = 'Add Match';
 };
 
