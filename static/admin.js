@@ -727,6 +727,6 @@ window.onload = async function() {
 };
 
 window.removeMatch = async function(matchId) {
-    await fetch(`/api/match/remove?id=${matchId}`);
+    await fetch(`/api/match/remove?id=${matchId}`, { method: 'POST' });
     fetchMatches();
 };
