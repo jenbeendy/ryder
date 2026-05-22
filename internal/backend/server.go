@@ -106,6 +106,19 @@ func StartServer() {
 	mux.HandleFunc("/api/score/submit", wrapAndBroadcast(SubmitScore))
 	// Dashboard
 	mux.HandleFunc("/api/dashboard", Dashboard)
+	// Settings
+	mux.HandleFunc("/api/settings", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			GetSettings(w, r)
+			return
+		}
+		if r.Method == http.MethodPost {
+			UpdateSetting(w, r)
+			go broadcast()
+			return
+		}
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
 	// Match score endpoints
 	mux.HandleFunc("/api/match/score", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {

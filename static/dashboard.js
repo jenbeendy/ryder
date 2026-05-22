@@ -9,10 +9,14 @@ let pongTimeout = null;
 // Ryder Cup Dashboard
 
 async function fetchDashboard() {
-    const res = await fetch('/api/dashboard');
-    const data = await res.json();
+    const [dashRes, settingsRes] = await Promise.all([
+        fetch('/api/dashboard'),
+        fetch('/api/settings'),
+    ]);
+    const data = await dashRes.json();
+    const settings = settingsRes.ok ? await settingsRes.json() : {};
     renderTeams(data.teams || [], data.projectedScores || {});
-    renderMatches(data.matches || {});
+    renderMatches(data.matches || {}, settings);
 }
 
 function renderTeams(teams, projectedScores) {
@@ -39,10 +43,13 @@ function renderTeams(teams, projectedScores) {
     });
 }
 
-function renderMatches(grouped) {
-    renderMatchGroup('matches-completed', grouped.completed || [], 'Completed');
-    renderMatchGroup('matches-running', grouped.running || [], 'Running');
-    renderMatchGroup('matches-prepared', grouped.prepared || [], 'Prepared');
+function renderMatches(grouped, settings) {
+    function visibleFilter(matches) {
+        return (matches || []).filter(m => settings['visibility_' + m.format] !== 'false');
+    }
+    renderMatchGroup('matches-completed', visibleFilter(grouped.completed), 'Completed');
+    renderMatchGroup('matches-running', visibleFilter(grouped.running), 'Running');
+    renderMatchGroup('matches-prepared', visibleFilter(grouped.prepared), 'Prepared');
 }
 
 function renderMatchGroup(listId, matches, label) {

@@ -638,6 +638,35 @@ window.showTab = function(tabId) {
     );
 };
 
+// --- Visibility ---
+const VISIBILITY_FORMATS = [
+    { key: 'visibility_singles', label: 'Singles' },
+    { key: 'visibility_foursome', label: 'Foursome' },
+    { key: 'visibility_texas_scramble', label: 'Texas Scramble' },
+];
+
+async function fetchAndRenderVisibility() {
+    const res = await fetch('/api/settings');
+    const settings = res.ok ? await res.json() : {};
+    const container = document.getElementById('visibility-checkboxes');
+    container.innerHTML = '';
+    VISIBILITY_FORMATS.forEach(({ key, label }) => {
+        const visible = settings[key] !== 'false';
+        const id = `vis-${key}`;
+        const row = document.createElement('label');
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:1rem;cursor:pointer;';
+        row.innerHTML = `<input type="checkbox" id="${id}" style="width:auto;margin:0;" ${visible ? 'checked' : ''}> ${label}`;
+        row.querySelector('input').addEventListener('change', async function() {
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [key]: this.checked ? 'true' : 'false' }),
+            });
+        });
+        container.appendChild(row);
+    });
+}
+
 window.onload = async function() {
     await loadAllPlayers();
     fetchPlayers();
@@ -648,6 +677,7 @@ window.onload = async function() {
     renderTemplateBar();
     createTypeahead('input-a', 'dropdown-a', 'tags-a', 'a');
     createTypeahead('input-b', 'dropdown-b', 'tags-b', 'b');
+    fetchAndRenderVisibility();
     document.querySelector('#player-form button').textContent = 'Add Player';
     document.querySelector('#team-form button').textContent = 'Add Team';
     document.querySelector('#match-form button[type="submit"]').textContent = 'Add Match';

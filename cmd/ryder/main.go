@@ -64,11 +64,20 @@ func autoMigrate(db *sql.DB) {
 			result TEXT,
 			PRIMARY KEY (match_id, hole)
 		);`,
+		`CREATE TABLE IF NOT EXISTS settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		);`,
 	}
 	for _, stmt := range tables {
 		if _, err := db.Exec(stmt); err != nil {
 			log.Fatalf("failed to migrate: %v", err)
 		}
+	}
+
+	// Seed default visibility settings
+	for _, format := range []string{"singles", "foursome", "texas_scramble"} {
+		_, _ = db.Exec("INSERT OR IGNORE INTO settings (key, value) VALUES (?, 'true')", "visibility_"+format)
 	}
 
 	// Add HCP column if not exists

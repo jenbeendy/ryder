@@ -698,6 +698,40 @@ func HandleMainPage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "static/index.html")
 }
 
+// --- Settings Handlers ---
+func GetSettings(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	rows, err := DB.Query("SELECT key, value FROM settings")
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer rows.Close()
+	settings := map[string]string{}
+	for rows.Next() {
+		var k, v string
+		rows.Scan(&k, &v)
+		settings[k] = v
+	}
+	json.NewEncoder(w).Encode(settings)
+}
+
+func UpdateSetting(w http.ResponseWriter, r *http.Request) {
+	var body map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	for k, v := range body {
+		_, err := DB.Exec("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", k, v)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- Per-hole Result Handlers ---
 func SaveHoleResults(w http.ResponseWriter, r *http.Request) {
 	type req struct {
