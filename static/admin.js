@@ -545,6 +545,14 @@ document.getElementById('match-format').onchange = function() {
     enforcePlayerCapacity();
 };
 
+function addTwoHours(timeStr) {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    if (parts.length !== 2) return timeStr;
+    let h = (parseInt(parts[0]) + 2) % 24;
+    return `${h}:${parts[1]}`;
+}
+
 // --- Populate match form (team dropdowns) ---
 async function populateMatchForm() {
     const teamsRes = await fetch('/api/team/list');
@@ -618,6 +626,21 @@ document.getElementById('match-form').onsubmit = async function(e) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     });
+    if (!id && format === 'texas_scramble' && holes === '9' && document.getElementById('match-also-foursome').checked) {
+        const foursomeHole = ((starting_hole - 1 + 9) % 18) + 1;
+        const foursomePayload = {
+            format: 'foursome', holes: '9',
+            team_a: teamA, team_b: teamB,
+            players_a: playersA, players_b: playersB,
+            start_time: addTwoHours(start_time),
+            starting_hole: foursomeHole
+        };
+        await fetch('/api/match/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(foursomePayload)
+        });
+    }
     this.reset();
     selectedPlayersA = [];
     selectedPlayersB = [];
