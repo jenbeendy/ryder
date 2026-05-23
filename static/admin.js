@@ -197,6 +197,13 @@ const STATUS_LABEL = { prepared: 'Prepared', running: 'Running', completed: 'Com
 
 function renderMatches(matches) {
     const container = document.getElementById('matches-list');
+    const countEl = document.getElementById('matches-count');
+    if (countEl) {
+        const total = allMatches.length;
+        countEl.textContent = matches.length === total
+            ? `${total} match${total !== 1 ? 'es' : ''}`
+            : `${matches.length} of ${total} match${total !== 1 ? 'es' : ''}`;
+    }
     container.innerHTML = '';
     if (matches.length === 0) {
         container.innerHTML = '<p style="color:#6b7280;text-align:center;padding:1.2rem 0;">No matches found.</p>';
