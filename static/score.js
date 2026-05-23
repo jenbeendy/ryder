@@ -90,7 +90,7 @@ async function showMatchScoreSection() {
     await loadMatchStatus();
     renderHoles();
     updateMatchScoreDisplay();
-    updateFinishButton();
+    await updateFinishButton();
     renderMatchTitle();
     // Register finish button event every time section is shown
     const btn = document.getElementById('finish-btn');
@@ -258,7 +258,7 @@ async function setMatchStatus(status, silent) {
     if (!currentMatch) return;
     // Optimistically update UI
     currentMatch.status = status;
-    updateFinishButton();
+    await updateFinishButton();
     if (status !== 'completed') {
         sEnabled = true;
     }
@@ -374,14 +374,29 @@ window.onload = async function() {
     }
 };
 
-function updateFinishButton() {
+async function isFormatLocked(format) {
+    const res = await fetch('/api/settings');
+    if (!res.ok) return false;
+    const settings = await res.json();
+    const key = 'lock_' + format;
+    return settings[key] === 'true';
+}
+
+async function updateFinishButton() {
     const btn = document.getElementById('finish-btn');
     if (!btn || !currentMatch) return;
     if (currentMatch.status === 'completed') {
-        btn.textContent = 'Upravit zápas';
-        btn.style.background = '#e53e3e';
-        btn.disabled = false;
+        const locked = await isFormatLocked(currentMatch.format);
+        if (locked) {
+            btn.style.display = 'none';
+        } else {
+            btn.style.display = '';
+            btn.textContent = 'Upravit zápas';
+            btn.style.background = '#e53e3e';
+            btn.disabled = false;
+        }
     } else {
+        btn.style.display = '';
         btn.textContent = 'Ukončit zápas';
         btn.style.background = '#38a169';
     }
