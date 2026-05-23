@@ -111,6 +111,10 @@ async function showMatchScoreSection() {
         };
     }
     setScoringEnabled(currentMatch.status !== 'completed');
+    const scoringEnableBtn = document.getElementById('enable-scoring-btn');
+    if (scoringEnableBtn) {
+        scoringEnableBtn.style.display = currentMatch.status === 'completed' ? 'none' : '';
+    }
 }
 
 async function loadMatchStatus() {
@@ -255,7 +259,15 @@ async function setMatchStatus(status, silent) {
     // Optimistically update UI
     currentMatch.status = status;
     updateFinishButton();
+    if (status !== 'completed') {
+        sEnabled = true;
+    }
     setScoringEnabled(status !== 'completed');
+    renderHoles();
+    const scoringEnableBtn = document.getElementById('enable-scoring-btn');
+    if (scoringEnableBtn) {
+        scoringEnableBtn.style.display = status === 'completed' ? 'none' : '';
+    }
     await fetch('/api/match/status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -292,6 +304,7 @@ window.onload = async function() {
     let clickTimer = null;
     const pinnedScore = document.getElementById('match-score');
     function enableScoring() {
+        if (currentMatch && currentMatch.status === 'completed') return;
         sEnabled = true;
         if (finishBtn) finishBtn.disabled = false;
         renderHoles();
@@ -367,6 +380,7 @@ function updateFinishButton() {
     if (currentMatch.status === 'completed') {
         btn.textContent = 'Upravit zápas';
         btn.style.background = '#e53e3e';
+        btn.disabled = false;
     } else {
         btn.textContent = 'Ukončit zápas';
         btn.style.background = '#38a169';
