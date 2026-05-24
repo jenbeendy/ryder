@@ -83,6 +83,7 @@ func StartServer() {
 	mux.HandleFunc("/api/player/edit", wrapAndBroadcast(EditPlayer))
 	mux.HandleFunc("/api/player/remove", wrapAndBroadcast(RemovePlayer))
 	mux.HandleFunc("/api/player/list", ListPlayers)
+	mux.HandleFunc("/api/player/stats", HandlePlayerStats)
 	// Team endpoints
 	mux.HandleFunc("/api/team/add", wrapAndBroadcast(AddTeam))
 	mux.HandleFunc("/api/team/edit", wrapAndBroadcast(EditTeam))

@@ -785,6 +785,94 @@ func LoadHoleResults(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"holes": holes})
 }
 
+// --- Player Statistics Handler ---
+func HandlePlayerStats(w http.ResponseWriter, r *http.Request) {
+	teamIDStr := r.URL.Query().Get("team_id")
+	if teamIDStr == "" {
+		http.Error(w, "team_id required", http.StatusBadRequest)
+		return
+	}
+	teamID, err := strconv.Atoi(teamIDStr)
+	if err != nil {
+		http.Error(w, "invalid team_id", http.StatusBadRequest)
+		return
+	}
+
+	type PlayerStats struct {
+		ID     int                `json:"id"`
+		Name   string             `json:"name"`
+		Points map[string]float64 `json:"points"`
+	}
+
+	playerRows, err := DB.Query(`SELECT p.id, p.name FROM players p JOIN team_players tp ON p.id = tp.player_id WHERE tp.team_id = ? ORDER BY p.name`, teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer playerRows.Close()
+
+	players := []*PlayerStats{}
+	playerMap := map[int]*PlayerStats{}
+	for playerRows.Next() {
+		var id int
+		var name string
+		playerRows.Scan(&id, &name)
+		ps := &PlayerStats{
+			ID:   id,
+			Name: name,
+			Points: map[string]float64{
+				"singles":        0,
+				"texas_scramble": 0,
+				"foursome":       0,
+				"total":          0,
+			},
+		}
+		players = append(players, ps)
+		playerMap[id] = ps
+	}
+
+	rows, err := DB.Query(`
+		SELECT p.id, m.format,
+			SUM(CASE
+				WHEN mp.team_side = 'A' AND hr.cnt_a > hr.cnt_b THEN 1
+				WHEN mp.team_side = 'B' AND hr.cnt_b > hr.cnt_a THEN 1
+				WHEN hr.cnt_a = hr.cnt_b THEN 0.5
+				ELSE 0
+			END) as points
+		FROM players p
+		JOIN team_players tp ON p.id = tp.player_id AND tp.team_id = ?
+		JOIN match_players mp ON p.id = mp.player_id
+		JOIN matches m ON mp.match_id = m.id AND m.status = 'completed'
+		JOIN (
+			SELECT match_id,
+				SUM(CASE WHEN result = 'A' THEN 1 ELSE 0 END) as cnt_a,
+				SUM(CASE WHEN result = 'B' THEN 1 ELSE 0 END) as cnt_b
+			FROM hole_results
+			GROUP BY match_id
+		) hr ON hr.match_id = m.id
+		GROUP BY p.id, m.format
+	`, teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var playerID int
+		var format string
+		var points float64
+		rows.Scan(&playerID, &format, &points)
+		if ps, ok := playerMap[playerID]; ok {
+			ps.Points[format] = points
+			ps.Points["total"] += points
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(players)
+}
+
 // --- Set Match Status Handler ---
 func SetMatchStatus(w http.ResponseWriter, r *http.Request) {
 	type req struct {

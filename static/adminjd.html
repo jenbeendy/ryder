@@ -58,6 +58,26 @@
         .filter-btn.active { background: #2563eb; color: #fff; }
         .filter-btn.active:hover { background: #1741a6; }
         @media (max-width: 700px) { .admin-container { padding: 1rem 0.2rem; } }
+        /* Statistics tab */
+        #stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.92rem; }
+        #stats-table th { background: #2563eb; color: #fff; padding: 7px 10px; text-align: left; }
+        #stats-table th:not(:first-child) { text-align: center; }
+        #stats-table td { padding: 6px 10px; border-bottom: 1px solid #e5e7eb; }
+        #stats-table td:not(:first-child) { text-align: center; }
+        #stats-table tr:hover td { background: #f0f6ff; }
+        #stats-table .total-col { font-weight: 700; }
+        .stats-controls { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 0.5rem; }
+        .stats-controls select { width: auto; margin: 0; }
+        .stats-controls button { margin: 0; }
+        .btn-export { background: #059669; }
+        .btn-export:hover { background: #047857; }
+        #stats-empty { color: #6b7280; font-size: 0.9rem; margin-top: 1rem; }
+        @media print {
+            body * { visibility: hidden; }
+            #stats-print-area, #stats-print-area * { visibility: visible; }
+            #stats-print-area { position: fixed; top: 0; left: 0; width: 100%; padding: 1rem; }
+            #stats-print-area h2 { color: #2563eb; }
+        }
         #score-modal { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); align-items:center; justify-content:center; }
         #score-modal > div { background:#fff; padding:2rem; border-radius:12px; min-width:300px; max-width:90vw; }
         /* Template bar */
@@ -95,6 +115,7 @@
             <button class="tab-btn" data-tab="matches-section" onclick="showTab('matches-section')">Matches</button>
             <button class="tab-btn" data-tab="visibility-section" onclick="showTab('visibility-section')">Visibility</button>
             <button class="tab-btn" data-tab="lock-section" onclick="showTab('lock-section')">Lock Results</button>
+            <button class="tab-btn" data-tab="stats-section" onclick="showTab('stats-section');loadStatsTeams()">Statistics</button>
         </div>
         <div class="section active" id="players-section">
             <h2>Players</h2>
@@ -220,6 +241,84 @@
             <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1.2rem;">Lock completed matches by format. Locked format hides the "Upravit zápas" button on the scoring page.</p>
             <div id="lock-checkboxes" style="display:flex;flex-direction:column;gap:1rem;"></div>
         </div>
+        <div class="section" id="stats-section">
+            <h2>Player Statistics</h2>
+            <div class="stats-controls">
+                <div>
+                    <label for="stats-team-select" style="margin:0 0 4px 0;font-size:0.85rem;">Team</label>
+                    <select id="stats-team-select"></select>
+                </div>
+                <button onclick="generateStats()">Generate</button>
+                <button class="btn-export" onclick="exportStatsPDF()" id="stats-export-btn" style="display:none">Export PDF</button>
+            </div>
+            <div id="stats-empty"></div>
+            <div id="stats-print-area" style="display:none">
+                <h2 id="stats-print-title"></h2>
+                <table id="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Singles</th>
+                            <th>Texas Scramble</th>
+                            <th>Foursome</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stats-tbody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
+    <script>
+        let _statsTeams = [];
+
+        function loadStatsTeams() {
+            if (_statsTeams.length > 0) return;
+            fetch('/api/team/list').then(r => r.json()).then(data => {
+                _statsTeams = data.teams || [];
+                const sel = document.getElementById('stats-team-select');
+                sel.innerHTML = _statsTeams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            });
+        }
+
+        function fmtPts(v) {
+            if (v === 0) return '—';
+            return v % 1 === 0 ? v.toString() : v.toFixed(1);
+        }
+
+        function generateStats() {
+            const teamID = document.getElementById('stats-team-select').value;
+            if (!teamID) return;
+            fetch(`/api/player/stats?team_id=${teamID}`)
+                .then(r => r.json())
+                .then(players => {
+                    const teamName = _statsTeams.find(t => t.id == teamID)?.name || '';
+                    document.getElementById('stats-print-title').textContent = `Player Statistics — ${teamName}`;
+                    const tbody = document.getElementById('stats-tbody');
+                    if (!players || players.length === 0) {
+                        document.getElementById('stats-print-area').style.display = 'none';
+                        document.getElementById('stats-export-btn').style.display = 'none';
+                        document.getElementById('stats-empty').textContent = 'No players or no completed matches for this team.';
+                        return;
+                    }
+                    tbody.innerHTML = players.map(p => `
+                        <tr>
+                            <td>${p.name}</td>
+                            <td>${fmtPts(p.points.singles)}</td>
+                            <td>${fmtPts(p.points.texas_scramble)}</td>
+                            <td>${fmtPts(p.points.foursome)}</td>
+                            <td class="total-col">${fmtPts(p.points.total)}</td>
+                        </tr>
+                    `).join('');
+                    document.getElementById('stats-empty').textContent = '';
+                    document.getElementById('stats-print-area').style.display = 'block';
+                    document.getElementById('stats-export-btn').style.display = '';
+                });
+        }
+
+        function exportStatsPDF() {
+            window.print();
+        }
+    </script>
 </body>
 </html>
