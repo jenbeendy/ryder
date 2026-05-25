@@ -150,8 +150,19 @@ function getPlayoffHolesCount() {
 }
 
 function teamLabel(team) {
-    if (team.players && team.players.length > 0) {
-        return team.players.map(p => p.name).join(' / ');
+    if (team.players && team.players.length === 1) {
+        const parts = team.players[0].name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return parts.slice(0, -1).join(' ') + '\n' + parts[parts.length - 1];
+        }
+        return team.players[0].name;
+    }
+    if (team.players && team.players.length > 1) {
+        // Multiple players: show each surname on its own line
+        return team.players.map(p => {
+            const parts = p.name.trim().split(/\s+/);
+            return parts[parts.length - 1];
+        }).join('\n');
     }
     return team.name;
 }
