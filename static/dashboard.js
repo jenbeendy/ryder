@@ -81,7 +81,7 @@ function matchRow(m) {
         if (m.start_time) preparedInfo += `<span style="display:block; font-size:1.1em; color:#1741a6; font-weight:600;">${m.start_time}</span>`;
         if (m.match_date) {
             const dp = m.match_date.split('-');
-            const fmtDate = dp.length === 3 ? `${dp[2]}.${dp[1]}.${dp[0]}` : m.match_date;
+            const fmtDate = dp.length === 3 ? `${parseInt(dp[2])}.${parseInt(dp[1])}.${dp[0]}` : m.match_date;
             preparedInfo += `<span style="display:block; font-size:0.8em; color:#1741a6; font-weight:600;">${fmtDate}</span>`;
         }
         startTimeHtml = `<span class='match-start-time' style="text-align:center;">${preparedInfo}</span>`;
