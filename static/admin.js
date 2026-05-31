@@ -171,11 +171,14 @@ function renderMatches(matches) {
         const teamBPlayers = (m.team_b.players || []).map(p => `${p.name} (HCP: ${p.hcp ?? ''})`).join(', ');
         const li = document.createElement('li');
         const dateStr = m.match_date ? ` | ${m.match_date}` : '';
-        li.innerHTML = `<span>${m.format.toUpperCase()} | Hole: ${m.starting_hole || 1}${dateStr} | ${m.team_a?.name || ''} [${teamAPlayers}] vs ${m.team_b?.name || ''} [${teamBPlayers}] | Status: ${m.status}</span>` +
+        const lockLabel = m.locked ? 'Unlock' : 'Lock';
+        const lockStyle = m.locked ? 'background:#b45309;' : 'background:#6b7280;';
+        li.innerHTML = `<span>${m.format.toUpperCase()} | Hole: ${m.starting_hole || 1}${dateStr} | ${m.team_a?.name || ''} [${teamAPlayers}] vs ${m.team_b?.name || ''} [${teamBPlayers}] | Status: ${m.status}${m.locked ? ' | 🔒' : ''}</span>` +
             `<span class="actions">
                 <button class="edit" onclick="editMatch(${m.id})">Edit</button>
                 <button onclick="removeMatch(${m.id})">Remove</button>
                 <button onclick="openScoreModal(${m.id}, '${m.team_a.name}', '${m.team_b.name}')">Enter Score</button>
+                <button style="${lockStyle}" onclick="toggleLockMatch(${m.id}, ${!m.locked})">${lockLabel}</button>
             </span>`;
         ul.appendChild(li);
     });
@@ -332,5 +335,14 @@ window.onload = function() {
 
 window.removeMatch = async function(matchId) {
     await fetch(`/api/match/remove?id=${matchId}`);
+    fetchMatches();
+};
+
+window.toggleLockMatch = async function(matchId, locked) {
+    await fetch('/api/match/lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_id: matchId, locked })
+    });
     fetchMatches();
 };

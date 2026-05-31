@@ -99,7 +99,11 @@ async function showMatchScoreSection() {
             }
         };
     }
-    setScoringEnabled(currentMatch.status !== 'completed');
+    const scoringBtn = document.getElementById('enable-scoring-btn');
+    if (scoringBtn) {
+        scoringBtn.style.display = currentMatch.locked ? 'none' : '';
+    }
+    setScoringEnabled(currentMatch.status !== 'completed' && !currentMatch.locked);
 }
 
 async function loadMatchStatus() {
@@ -109,7 +113,10 @@ async function loadMatchStatus() {
     if (res.ok) {
         const data = await res.json();
         const match = (data.matches || []).find(m => m.id == currentMatch.id);
-        if (match && match.status) currentMatch.status = match.status;
+        if (match) {
+            if (match.status) currentMatch.status = match.status;
+            currentMatch.locked = match.locked || false;
+        }
     }
 }
 
@@ -361,6 +368,7 @@ window.onload = async function() {
     let clickTimer = null;
     const pinnedScore = document.getElementById('match-score');
     function enableScoring() {
+        if (currentMatch && currentMatch.locked) return;
         sEnabled = true;
         if (finishBtn) finishBtn.disabled = false;
         renderHoles();
@@ -407,6 +415,7 @@ window.onload = async function() {
     const scoringEnableBtn = document.getElementById('enable-scoring-btn');
     if (scoringEnableBtn) {
         scoringEnableBtn.onclick = function() {
+            if (currentMatch && currentMatch.locked) return;
             enableScoring();
             scoringEnableBtn.disabled = true;
             scoringEnableBtn.textContent = 'Skórování povoleno';
@@ -433,6 +442,11 @@ window.onload = async function() {
 function updateFinishButton() {
     const btn = document.getElementById('finish-btn');
     if (!btn || !currentMatch) return;
+    if (currentMatch.locked) {
+        btn.style.display = 'none';
+        return;
+    }
+    btn.style.display = '';
     if (currentMatch.status === 'completed') {
         btn.textContent = 'Upravit zápas';
         btn.style.background = '#e53e3e';

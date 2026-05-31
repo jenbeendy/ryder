@@ -79,6 +79,8 @@ func autoMigrate(db *sql.DB) {
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN starting_hole INTEGER DEFAULT 1;")
 	// Add match_date column if not exists
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN match_date TEXT;")
+	// Add locked column if not exists
+	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN locked INTEGER DEFAULT 0;")
 }
 
 func main() {

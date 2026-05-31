@@ -117,6 +117,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		Format       string `json:"format"`
 		Holes        string `json:"holes"`
 		Status       string `json:"status"`
+		Locked       bool   `json:"locked"`
 		StartTime    string `json:"start_time"`
 		StartingHole int    `json:"starting_hole"`
 		MatchDate    string `json:"match_date"`
@@ -133,7 +134,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 			Players []MatchPlayer `json:"players"`
 		} `json:"team_b"`
 	}
-	rows, err := DB.Query(`SELECT m.id, m.format, m.holes, m.status, m.start_time, m.starting_hole, m.match_date, ta.id, ta.name, ta.color, tb.id, tb.name, tb.color FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id`)
+	rows, err := DB.Query(`SELECT m.id, m.format, m.holes, m.status, COALESCE(m.locked, 0), m.start_time, m.starting_hole, m.match_date, ta.id, ta.name, ta.color, tb.id, tb.name, tb.color FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id`)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -147,9 +148,11 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		var tbColor, taColor string
 		var startTime string
 		var matchDate sql.NullString
-		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &startTime, &m.StartingHole, &matchDate, &taID, &taName, &taColor, &tbID, &tbName, &tbColor); err != nil {
+		var lockedInt int
+		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &lockedInt, &startTime, &m.StartingHole, &matchDate, &taID, &taName, &taColor, &tbID, &tbName, &tbColor); err != nil {
 			continue
 		}
+		m.Locked = lockedInt != 0
 		m.TeamA.ID, m.TeamA.Name, m.TeamA.Color = taID, taName, taColor
 		m.TeamB.ID, m.TeamB.Name, m.TeamB.Color = tbID, tbName, tbColor
 		m.StartTime = startTime
@@ -822,6 +825,29 @@ func SetMatchStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err := DB.Exec("UPDATE matches SET status=? WHERE id=?", body.Status, body.MatchID)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Lock Match Handler ---
+func LockMatch(w http.ResponseWriter, r *http.Request) {
+	type req struct {
+		MatchID int  `json:"match_id"`
+		Locked  bool `json:"locked"`
+	}
+	var body req
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	lockedVal := 0
+	if body.Locked {
+		lockedVal = 1
+	}
+	_, err := DB.Exec("UPDATE matches SET locked=? WHERE id=?", lockedVal, body.MatchID)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return

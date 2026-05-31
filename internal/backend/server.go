@@ -141,6 +141,15 @@ func StartServer() {
 		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	})
+	// Match lock endpoint
+	mux.HandleFunc("/api/match/lock", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			LockMatch(w, r)
+			go broadcast()
+			return
+		}
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
 
 	addr := ":" + port
 	if err := http.ListenAndServe(addr, mux); err != nil {
