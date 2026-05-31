@@ -706,6 +706,11 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		dj, _ := grouped["prepared"][j]["match_date"].(string)
 		ti, _ := grouped["prepared"][i]["start_time"].(string)
 		tj, _ := grouped["prepared"][j]["start_time"].(string)
+		iEmpty := di == "" && ti == ""
+		jEmpty := dj == "" && tj == ""
+		if iEmpty != jEmpty {
+			return !iEmpty
+		}
 		if di != dj {
 			return di < dj
 		}
