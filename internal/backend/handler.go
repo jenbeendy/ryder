@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -700,6 +701,16 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		grouped[status] = append(grouped[status], m)
 	}
+	sort.Slice(grouped["prepared"], func(i, j int) bool {
+		di, _ := grouped["prepared"][i]["match_date"].(string)
+		dj, _ := grouped["prepared"][j]["match_date"].(string)
+		ti, _ := grouped["prepared"][i]["start_time"].(string)
+		tj, _ := grouped["prepared"][j]["start_time"].(string)
+		if di != dj {
+			return di < dj
+		}
+		return ti < tj
+	})
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"teams":           teams,
 		"matches":         grouped,
