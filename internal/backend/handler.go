@@ -832,6 +832,26 @@ func SetMatchStatus(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// --- Reset Match Handler ---
+func ResetMatch(w http.ResponseWriter, r *http.Request) {
+	type req struct {
+		MatchID int `json:"match_id"`
+	}
+	var body req
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	_, _ = DB.Exec("DELETE FROM hole_results WHERE match_id=?", body.MatchID)
+	_, _ = DB.Exec("DELETE FROM scores WHERE match_id=?", body.MatchID)
+	_, err := DB.Exec("UPDATE matches SET status='prepared', locked=0 WHERE id=?", body.MatchID)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- Lock Match Handler ---
 func LockMatch(w http.ResponseWriter, r *http.Request) {
 	type req struct {

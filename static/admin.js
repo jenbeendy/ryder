@@ -179,6 +179,7 @@ function renderMatches(matches) {
                 <button onclick="removeMatch(${m.id})">Remove</button>
                 <button onclick="openScoreModal(${m.id}, '${m.team_a.name}', '${m.team_b.name}')">Enter Score</button>
                 <button style="${lockStyle}" onclick="toggleLockMatch(${m.id}, ${!m.locked})">${lockLabel}</button>
+                <button style="background:#7c3aed;" onclick="resetMatch(${m.id})">Reset</button>
             </span>`;
         ul.appendChild(li);
     });
@@ -335,6 +336,16 @@ window.onload = function() {
 
 window.removeMatch = async function(matchId) {
     await fetch(`/api/match/remove?id=${matchId}`);
+    fetchMatches();
+};
+
+window.resetMatch = async function(matchId) {
+    if (!confirm('Reset match? This will delete all scores and set status to prepared.')) return;
+    await fetch('/api/match/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_id: matchId })
+    });
     fetchMatches();
 };
 
