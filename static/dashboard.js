@@ -41,7 +41,7 @@ function renderMatchGroup(listId, matches, label) {
 function matchRow(m) {
     // Format player lists
     function playerList(players) {
-        return (players || []).map(p => `${p.name}(${p.hcp ?? ''})`).join(', ');
+        return (players || []).map(p => `<span style="white-space:nowrap">${p.name} (${p.hcp ?? ''})</span>`).join(', ');
     }
     const left = playerList(m.players_a);
     const right = playerList(m.players_b);
