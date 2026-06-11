@@ -121,6 +121,8 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		StartTime    string `json:"start_time"`
 		StartingHole int    `json:"starting_hole"`
 		MatchDate    string `json:"match_date"`
+		Round        *int   `json:"round"`
+		BracketSlot  *int   `json:"bracket_slot"`
 		TeamA     struct {
 			ID      int           `json:"id"`
 			Name    string        `json:"name"`
@@ -134,7 +136,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 			Players []MatchPlayer `json:"players"`
 		} `json:"team_b"`
 	}
-	rows, err := DB.Query(`SELECT m.id, m.format, m.holes, m.status, COALESCE(m.locked, 0), m.start_time, m.starting_hole, m.match_date, ta.id, ta.name, ta.color, tb.id, tb.name, tb.color FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id`)
+	rows, err := DB.Query(`SELECT m.id, m.format, m.holes, m.status, COALESCE(m.locked, 0), m.start_time, m.starting_hole, m.match_date, m.round, m.bracket_slot, ta.id, ta.name, ta.color, tb.id, tb.name, tb.color FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id`)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -149,7 +151,8 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		var startTime string
 		var matchDate sql.NullString
 		var lockedInt int
-		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &lockedInt, &startTime, &m.StartingHole, &matchDate, &taID, &taName, &taColor, &tbID, &tbName, &tbColor); err != nil {
+		var round, bracketSlot sql.NullInt64
+		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &lockedInt, &startTime, &m.StartingHole, &matchDate, &round, &bracketSlot, &taID, &taName, &taColor, &tbID, &tbName, &tbColor); err != nil {
 			continue
 		}
 		m.Locked = lockedInt != 0
@@ -158,6 +161,14 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		m.StartTime = startTime
 		if matchDate.Valid {
 			m.MatchDate = matchDate.String
+		}
+		if round.Valid {
+			v := int(round.Int64)
+			m.Round = &v
+		}
+		if bracketSlot.Valid {
+			v := int(bracketSlot.Int64)
+			m.BracketSlot = &v
 		}
 		// Fetch players for each team in this match
 		paRows, _ := DB.Query(`SELECT p.id, p.name, p.hcp FROM match_players mp JOIN players p ON mp.player_id=p.id WHERE mp.match_id=? AND mp.team_side='A'`, m.ID)
@@ -381,6 +392,8 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 		StartTime    string `json:"start_time"`
 		StartingHole int    `json:"starting_hole"`
 		MatchDate    string `json:"match_date"`
+		Round        *int   `json:"round"`
+		BracketSlot  *int   `json:"bracket_slot"`
 	}
 	var body req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -390,7 +403,7 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 	if body.StartingHole < 1 || body.StartingHole > 18 {
 		body.StartingHole = 1
 	}
-	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole, match_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime, body.StartingHole, body.MatchDate)
+	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole, match_date, round, bracket_slot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime, body.StartingHole, body.MatchDate, body.Round, body.BracketSlot)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -417,6 +430,8 @@ func EditMatch(w http.ResponseWriter, r *http.Request) {
 		StartTime    string `json:"start_time"`
 		StartingHole int    `json:"starting_hole"`
 		MatchDate    string `json:"match_date"`
+		Round        *int   `json:"round"`
+		BracketSlot  *int   `json:"bracket_slot"`
 	}
 	var body req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -427,8 +442,8 @@ func EditMatch(w http.ResponseWriter, r *http.Request) {
 		body.StartingHole = 1
 	}
 	// Update match details
-	_, err := DB.Exec(`UPDATE matches SET format=?, holes=?, team_a_id=?, team_b_id=?, start_time=?, starting_hole=?, match_date=? WHERE id=?`,
-		body.Format, body.Holes, body.TeamA, body.TeamB, body.StartTime, body.StartingHole, body.MatchDate, body.ID)
+	_, err := DB.Exec(`UPDATE matches SET format=?, holes=?, team_a_id=?, team_b_id=?, start_time=?, starting_hole=?, match_date=?, round=?, bracket_slot=? WHERE id=?`,
+		body.Format, body.Holes, body.TeamA, body.TeamB, body.StartTime, body.StartingHole, body.MatchDate, body.Round, body.BracketSlot, body.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -552,7 +567,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		teamNames[id] = name
 	}
 	// 2. Get all finished matches and accumulate scores
-	matchRows, _ := DB.Query("SELECT id, team_a_id, team_b_id, status, start_time, starting_hole, match_date FROM matches")
+	matchRows, _ := DB.Query("SELECT id, team_a_id, team_b_id, status, start_time, starting_hole, match_date, round, bracket_slot FROM matches")
 	defer matchRows.Close()
 	matches := []map[string]interface{}{}
 	for matchRows.Next() {
@@ -561,8 +576,16 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		var startTime string
 		var startingHole int
 		var matchDate sql.NullString
-		matchRows.Scan(&id, &ta, &tb, &status, &startTime, &startingHole, &matchDate)
-		m := map[string]interface{}{"id": id, "team_a_id": ta, "team_b_id": tb, "status": status, "team_a_name": teamNames[ta], "team_b_name": teamNames[tb], "start_time": startTime, "starting_hole": startingHole, "match_date": matchDate.String}
+		var round, bracketSlot sql.NullInt64
+		matchRows.Scan(&id, &ta, &tb, &status, &startTime, &startingHole, &matchDate, &round, &bracketSlot)
+		var roundVal, slotVal interface{}
+		if round.Valid {
+			roundVal = int(round.Int64)
+		}
+		if bracketSlot.Valid {
+			slotVal = int(bracketSlot.Int64)
+		}
+		m := map[string]interface{}{"id": id, "team_a_id": ta, "team_b_id": tb, "status": status, "team_a_name": teamNames[ta], "team_b_name": teamNames[tb], "start_time": startTime, "starting_hole": startingHole, "match_date": matchDate.String, "round": roundVal, "bracket_slot": slotVal}
 		// Add player names and HCPs for each team
 		paRows, err := DB.Query(`SELECT p.name, p.hcp FROM match_players mp JOIN players p ON mp.player_id=p.id WHERE mp.match_id=? AND mp.team_side='A'`, id)
 		if err != nil {
@@ -704,21 +727,43 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		grouped[status] = append(grouped[status], m)
 	}
-	sort.Slice(grouped["prepared"], func(i, j int) bool {
-		di, _ := grouped["prepared"][i]["match_date"].(string)
-		dj, _ := grouped["prepared"][j]["match_date"].(string)
-		ti, _ := grouped["prepared"][i]["start_time"].(string)
-		tj, _ := grouped["prepared"][j]["start_time"].(string)
-		iEmpty := di == "" && ti == ""
-		jEmpty := dj == "" && tj == ""
-		if iEmpty != jEmpty {
-			return !iEmpty
-		}
-		if di != dj {
-			return di < dj
-		}
-		return ti < tj
-	})
+	// Sort each status group by (round, bracket_slot) so bracket matches cluster together;
+	// matches without a round fall back to the existing date/time ordering.
+	sortByRoundThenSchedule := func(group []map[string]interface{}) {
+		sort.SliceStable(group, func(i, j int) bool {
+			ri, riOk := group[i]["round"].(int)
+			rj, rjOk := group[j]["round"].(int)
+			if riOk != rjOk {
+				return riOk
+			}
+			if riOk && rj != ri {
+				return ri < rj
+			}
+			if riOk {
+				si, _ := group[i]["bracket_slot"].(int)
+				sj, _ := group[j]["bracket_slot"].(int)
+				if si != sj {
+					return si < sj
+				}
+			}
+			di, _ := group[i]["match_date"].(string)
+			dj, _ := group[j]["match_date"].(string)
+			ti, _ := group[i]["start_time"].(string)
+			tj, _ := group[j]["start_time"].(string)
+			iEmpty := di == "" && ti == ""
+			jEmpty := dj == "" && tj == ""
+			if iEmpty != jEmpty {
+				return !iEmpty
+			}
+			if di != dj {
+				return di < dj
+			}
+			return ti < tj
+		})
+	}
+	sortByRoundThenSchedule(grouped["prepared"])
+	sortByRoundThenSchedule(grouped["running"])
+	sortByRoundThenSchedule(grouped["completed"])
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"teams":           teams,
 		"matches":         grouped,

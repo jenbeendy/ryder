@@ -75,6 +75,10 @@
                 <input type="date" id="match-date" style="width:12em;">
                 <label for="match-start-time">Start Time (h:mm)</label>
                 <input type="text" id="match-start-time" pattern="^([0-9]{1,2}:[0-9]{2})$" placeholder="e.g. 8:30" style="width:7em;">
+                <label for="match-round">Round</label>
+                <input type="number" id="match-round" min="1" placeholder="e.g. 1" style="width:5em;" title="Tournament round number — leave blank for a standalone match">
+                <label for="match-bracket-slot">Bracket position</label>
+                <input type="number" id="match-bracket-slot" min="0" placeholder="e.g. 0" style="width:5em;" title="Slot/position within the round (0-based) — used to lay out the bracket tree">
                 <label for="match-starting-hole">Starting Hole</label>
                 <select id="match-starting-hole">
                     <option value="1">1</option><option value="2">2</option><option value="3">3</option>

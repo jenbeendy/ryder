@@ -15,9 +15,9 @@ async function fetchDashboard() {
 }
 
 function renderMatches(grouped) {
-    renderMatchGroup('matches-completed', grouped.completed || [], 'Completed');
     renderMatchGroup('matches-running', grouped.running || [], 'Running');
     renderMatchGroup('matches-prepared', grouped.prepared || [], 'Prepared');
+    renderBracket([].concat(grouped.completed || [], grouped.running || [], grouped.prepared || []));
 }
 
 function renderMatchGroup(listId, matches, label) {
@@ -33,9 +33,127 @@ function renderMatchGroup(listId, matches, label) {
         return;
     }
     ul.innerHTML = '';
+    let lastRound = null;
+    let seenRound = false;
     matches.forEach(m => {
+        const round = (m.round === null || m.round === undefined) ? null : m.round;
+        if (round !== lastRound && (round !== null || seenRound)) {
+            ul.innerHTML += `<li class="round-header">${round !== null ? 'Kolo ' + round : 'Ostatní zápasy'}</li>`;
+        }
+        if (round !== null) seenRound = true;
+        lastRound = round;
         ul.innerHTML += matchRow(m);
     });
+}
+
+// --- Bracket tree (rounds are positioned purely from match.round + match.bracket_slot;
+// slot i/i+1 in round N feed slot floor(i/2) in round N+1, the standard single-elim numbering) ---
+function renderBracket(allMatches) {
+    const section = document.getElementById('bracket-section');
+    const container = document.getElementById('bracket-view');
+    if (!section || !container) return;
+    const bracketMatches = allMatches.filter(m =>
+        m.round !== null && m.round !== undefined && m.bracket_slot !== null && m.bracket_slot !== undefined);
+    if (bracketMatches.length === 0) {
+        section.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+    section.style.display = '';
+    // Full tree shape: rounds are consecutive integers starting at the lowest
+    // round seen. The size of the whole tree (and thus how many rounds lead up
+    // to the final) is inferred from how far each match's slot projects back to
+    // round 0 — slot s in round (minRound+idx) implies at least (s+1)*2^idx
+    // first-round slots, rounded up to the nearest power of two. Missing
+    // matches (including entire not-yet-created rounds up to the final) render
+    // as placeholder cells.
+    const minRound = Math.min(...bracketMatches.map(m => m.round));
+    let maxImplied = 1;
+    bracketMatches.forEach(m => {
+        const span = Math.pow(2, m.round - minRound);
+        maxImplied = Math.max(maxImplied, (m.bracket_slot + 1) * span);
+    });
+    const firstRoundSize = Math.pow(2, Math.ceil(Math.log2(maxImplied)));
+    const numRounds = Math.round(Math.log2(firstRoundSize)) + 1;
+    const rounds = [];
+    for (let i = 0; i < numRounds; i++) rounds.push(minRound + i);
+    const maxRows = firstRoundSize;
+    container.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'bracket-grid';
+    grid.style.gridTemplateColumns = `repeat(${numRounds}, minmax(220px, 1fr))`;
+    grid.style.gridTemplateRows = `auto repeat(${maxRows}, minmax(36px, auto))`;
+    rounds.forEach((r, idx) => {
+        const span = Math.pow(2, idx);
+        const slotCount = Math.pow(2, numRounds - 1 - idx);
+        const label = document.createElement('div');
+        label.className = 'bracket-round-label';
+        label.style.gridColumn = idx + 1;
+        label.style.gridRow = '1';
+        label.textContent = `Kolo ${r}`;
+        grid.appendChild(label);
+        const existing = bracketMatches.filter(m => m.round === r);
+        for (let slot = 0; slot < slotCount; slot++) {
+            const m = existing.find(x => x.bracket_slot === slot);
+            const cell = document.createElement('div');
+            cell.className = 'bracket-match';
+            cell.dataset.round = r;
+            cell.dataset.slot = slot;
+            cell.style.gridColumn = idx + 1;
+            cell.style.gridRow = `${slot * span + 2} / span ${span}`;
+            if (m) {
+                cell.innerHTML = matchRow(m);
+            } else {
+                cell.classList.add('bracket-placeholder');
+                cell.innerHTML = `<li class="bracket-placeholder-card"><span class="match-link">
+                    <span class='match-players' style="text-align:center; width:100%; color:#aaa; font-style:italic;">TBD</span>
+                </span></li>`;
+            }
+            grid.appendChild(cell);
+        }
+    });
+    container.appendChild(grid);
+    requestAnimationFrame(() => drawBracketConnectors(grid, rounds));
+}
+
+function drawBracketConnectors(grid, rounds) {
+    grid.querySelectorAll('.bracket-connector').forEach(el => el.remove());
+    const gridRect = grid.getBoundingClientRect();
+    const addLine = (x1, y1, x2, y2) => {
+        const line = document.createElement('div');
+        line.className = 'bracket-connector';
+        if (y1 === y2) {
+            line.style.left = Math.min(x1, x2) + 'px';
+            line.style.top = (y1 - 1) + 'px';
+            line.style.width = Math.abs(x2 - x1) + 'px';
+            line.style.height = '2px';
+        } else {
+            line.style.left = (x1 - 1) + 'px';
+            line.style.top = Math.min(y1, y2) + 'px';
+            line.style.width = '2px';
+            line.style.height = Math.abs(y2 - y1) + 'px';
+        }
+        grid.appendChild(line);
+    };
+    for (let idx = 0; idx < rounds.length - 1; idx++) {
+        const currentCells = grid.querySelectorAll(`[data-round="${rounds[idx]}"]`);
+        currentCells.forEach(fromEl => {
+            const slot = parseInt(fromEl.dataset.slot, 10);
+            const parentSlot = Math.floor(slot / 2);
+            const toEl = grid.querySelector(`[data-round="${rounds[idx + 1]}"][data-slot="${parentSlot}"]`);
+            if (!toEl) return;
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+            const x1 = fromRect.right - gridRect.left;
+            const y1 = fromRect.top + fromRect.height / 2 - gridRect.top;
+            const x2 = toRect.left - gridRect.left;
+            const y2 = toRect.top + toRect.height / 2 - gridRect.top;
+            const midX = (x1 + x2) / 2;
+            addLine(x1, y1, midX, y1);
+            addLine(midX, y1, midX, y2);
+            addLine(midX, y2, x2, y2);
+        });
+    }
 }
 
 function matchRow(m) {
@@ -45,7 +163,6 @@ function matchRow(m) {
     }
     const left = playerList(m.players_a);
     const right = playerList(m.players_b);
-    let format = m.format ? m.format.charAt(0).toUpperCase() + m.format.slice(1).replace('_', ' ') : '';
     let scoreHtml = '';
     let holesLeft = null;
     // Determine holes to play based on format and holeResults
@@ -89,7 +206,6 @@ function matchRow(m) {
         startTimeHtml = `<span class='match-score'>${scoreHtml}</span>`;
     }
     return `<li><span class="match-link" onclick="goToScore(${m.id})">
-        <span class='match-format'>${format}</span>
         <span class='match-players'>${left}<br>${right}</span>
         ${startTimeHtml}
     </span></li>`;

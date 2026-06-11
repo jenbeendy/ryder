@@ -196,6 +196,45 @@
             box-sizing:border-box;
             transition:background 0.2s;
         }
+        .round-header {
+            background: transparent;
+            box-shadow: none;
+            border: none;
+            padding: 0.2rem 0.3rem 0.1rem;
+            margin-bottom: 0.3rem;
+            font-weight: 700;
+            font-size: 1rem;
+            color: #2563eb;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            display: block;
+        }
+        .bracket-section { overflow-x: auto; flex: none; margin-top: 1.5rem; }
+        .bracket-grid {
+            position: relative;
+            display: grid;
+            column-gap: 1.5rem;
+            row-gap: 0.4rem;
+            min-width: 960px;
+        }
+        .bracket-round-label {
+            text-align: center;
+            font-weight: 700;
+            color: #2563eb;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .bracket-match { align-self: center; cursor: pointer; }
+        .bracket-match li { margin-bottom: 0; }
+        .bracket-placeholder { cursor: default; }
+        .bracket-placeholder-card {
+            background: #f1f5f9 !important;
+            border: 2px dashed #cbd5e1 !important;
+            box-shadow: none !important;
+        }
+        .bracket-placeholder-card .match-link { cursor: default; }
+        .bracket-connector { position: absolute; background: #94a3b8; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -219,6 +258,10 @@
                 <h2>Dokončené</h2>
                 <ul id="matches-completed"></ul>
             </div>
+        </div>
+        <div class="matches-section bracket-section" id="bracket-section" style="display:none;">
+            <h2>Pavouk</h2>
+            <div id="bracket-view"></div>
         </div>
     </div>
 </body>

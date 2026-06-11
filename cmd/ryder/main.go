@@ -81,6 +81,9 @@ func autoMigrate(db *sql.DB) {
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN match_date TEXT;")
 	// Add locked column if not exists
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN locked INTEGER DEFAULT 0;")
+	// Add round/bracket_slot columns if not exists (NULL = standalone match, not part of a tournament bracket)
+	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN round INTEGER;")
+	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN bracket_slot INTEGER;")
 }
 
 func main() {
