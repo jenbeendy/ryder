@@ -81,7 +81,7 @@ function renderBracket(allMatches) {
     container.innerHTML = '';
     const grid = document.createElement('div');
     grid.className = 'bracket-grid';
-    grid.style.gridTemplateColumns = `repeat(${numRounds}, minmax(220px, 1fr))`;
+    grid.style.gridTemplateColumns = `repeat(${numRounds}, minmax(270px, 1fr))`;
     grid.style.gridTemplateRows = `auto repeat(${maxRows}, minmax(36px, auto))`;
     rounds.forEach((r, idx) => {
         const span = Math.pow(2, idx);
