@@ -158,69 +158,84 @@ window.removeTeam = async function(id) {
 };
 
 // --- Matches ---
+let allMatches = [];
+let activeMatchFilter = 'all';
+let activeLockFilter = 'all';
+
+window.setMatchFilter = function(filter) {
+    activeMatchFilter = filter;
+    document.querySelectorAll('.filter-btn[data-filter]').forEach(btn =>
+        btn.classList.toggle('active', btn.dataset.filter === filter)
+    );
+    renderMatches(allMatches);
+};
+
+window.setLockFilter = function(filter) {
+    activeLockFilter = activeLockFilter === filter ? 'all' : filter;
+    document.querySelectorAll('.filter-btn[data-lock]').forEach(btn =>
+        btn.classList.toggle('active', btn.dataset.lock === activeLockFilter)
+    );
+    renderMatches(allMatches);
+};
+
 async function fetchMatches() {
     const res = await fetch('/api/match/list');
     if (!res.ok) return;
     const data = await res.json();
-    renderMatches(data.matches || []);
+    allMatches = data.matches || [];
+    renderMatches(allMatches);
 }
 
 function renderMatches(matches) {
     const ul = document.getElementById('matches-list');
     ul.innerHTML = '';
+    if (activeMatchFilter !== 'all') {
+        matches = matches.filter(m => m.status === activeMatchFilter);
+    }
+    if (activeLockFilter === 'locked') {
+        matches = matches.filter(m => m.locked);
+    } else if (activeLockFilter === 'unlocked') {
+        matches = matches.filter(m => !m.locked);
+    }
     matches.forEach(m => {
-        const teamAPlayers = (m.team_a.players || []).map(p => `${p.name} (HCP: ${p.hcp ?? ''})`).join(', ');
-        const teamBPlayers = (m.team_b.players || []).map(p => `${p.name} (HCP: ${p.hcp ?? ''})`).join(', ');
-        const li = document.createElement('li');
-        const dateStr = m.match_date ? ` | ${m.match_date}` : '';
-        const roundStr = (m.round !== null && m.round !== undefined) ? ` | Round ${m.round}${(m.bracket_slot !== null && m.bracket_slot !== undefined) ? '.' + m.bracket_slot : ''}` : '';
+        const fmtPlayer = p => `${p.name}${p.hcp != null ? ` (${p.hcp})` : ''}`;
+        const teamAPlayers = (m.team_a.players || []).map(fmtPlayer).join(', ');
+        const teamBPlayers = (m.team_b.players || []).map(fmtPlayer).join(', ');
+
+        const when = [m.match_date, m.start_time].filter(Boolean).join(' · ');
+        const roundStr = m.round != null
+            ? `Round ${m.round}${m.bracket_slot != null ? `.${m.bracket_slot}` : ''}`
+            : '';
+        const metaParts = [when, roundStr].filter(Boolean);
+
+        const statusClass = { prepared: 'badge-prepared', running: 'badge-running', completed: 'badge-completed' }[m.status] || 'badge-prepared';
         const lockLabel = m.locked ? 'Unlock' : 'Lock';
-        const lockStyle = m.locked ? 'background:#b45309;' : 'background:#6b7280;';
-        li.innerHTML = `<span>${m.format.toUpperCase()} | Hole: ${m.starting_hole || 1}${dateStr}${roundStr} | ${m.team_a?.name || ''} [${teamAPlayers}] vs ${m.team_b?.name || ''} [${teamBPlayers}] | Status: ${m.status}${m.locked ? ' | 🔒' : ''}</span>` +
-            `<span class="actions">
+        const lockClass = m.locked ? 'btn-lock locked' : 'btn-lock';
+
+        const li = document.createElement('li');
+        li.className = 'match-card';
+        li.innerHTML = `
+            <div class="match-meta">
+                <span class="match-badge ${statusClass}">${m.status}</span>
+                ${m.locked ? '🔒 ' : ''}<strong>${m.format.replace('_', ' ').toUpperCase()}</strong> · ${m.holes} holes · Hole ${m.starting_hole || 1}${metaParts.length ? ' · ' + metaParts.join(' · ') : ''}
+            </div>
+            <div class="match-teams">${m.team_a?.name || ''} vs ${m.team_b?.name || ''}</div>
+            <div class="match-players">
+                ${teamAPlayers ? `<strong>${m.team_a?.name}:</strong> ${teamAPlayers}` : ''}
+                ${teamAPlayers && teamBPlayers ? ' &nbsp;|&nbsp; ' : ''}
+                ${teamBPlayers ? `<strong>${m.team_b?.name}:</strong> ${teamBPlayers}` : ''}
+            </div>
+            <div class="match-actions">
                 <button class="edit" onclick="editMatch(${m.id})">Edit</button>
-                <button onclick="removeMatch(${m.id})">Remove</button>
-                <button onclick="openScoreModal(${m.id}, '${m.team_a.name}', '${m.team_b.name}')">Enter Score</button>
-                <button style="${lockStyle}" onclick="toggleLockMatch(${m.id}, ${!m.locked})">${lockLabel}</button>
-                <button style="background:#7c3aed;" onclick="resetMatch(${m.id})">Reset</button>
-            </span>`;
+
+                <button class="${lockClass}" onclick="toggleLockMatch(${m.id}, ${!m.locked})">${lockLabel}</button>
+                <button class="btn-reset" onclick="resetMatch(${m.id})">Reset</button>
+                <button class="btn-danger" onclick="removeMatch(${m.id})">Remove</button>
+            </div>`;
         ul.appendChild(li);
     });
 }
 
-window.openScoreModal = async function(matchId, teamAName, teamBName) {
-    document.getElementById('score-match-id').value = matchId;
-    document.getElementById('score-team-a').innerHTML = `<label>${teamAName} Score <input type='number' step='0.1' id='score-a' required></label>`;
-    document.getElementById('score-team-b').innerHTML = `<label>${teamBName} Score <input type='number' step='0.1' id='score-b' required></label>`;
-    document.getElementById('score-modal').style.display = 'flex';
-    // Optionally fetch existing scores
-    const res = await fetch(`/api/match/score?match_id=${matchId}`);
-    if (res.ok) {
-        const data = await res.json();
-        if (data.scores) {
-            if (data.scores.A !== undefined) document.getElementById('score-a').value = data.scores.A;
-            if (data.scores.B !== undefined) document.getElementById('score-b').value = data.scores.B;
-        }
-    }
-};
-
-window.closeScoreModal = function() {
-    document.getElementById('score-modal').style.display = 'none';
-};
-
-document.getElementById('score-form').onsubmit = async function(e) {
-    e.preventDefault();
-    const matchId = document.getElementById('score-match-id').value;
-    const scoreA = parseFloat(document.getElementById('score-a').value);
-    const scoreB = parseFloat(document.getElementById('score-b').value);
-    await fetch('/api/match/score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ match_id: parseInt(matchId), scores: { A: scoreA, B: scoreB } })
-    });
-    closeScoreModal();
-    fetchMatches();
-};
 
 // --- Update match player selects based on team selection ---
 async function updateMatchPlayersSelects() {
@@ -342,6 +357,7 @@ window.onload = function() {
 };
 
 window.removeMatch = async function(matchId) {
+    if (!confirm('Remove this match? This cannot be undone.')) return;
     await fetch(`/api/match/remove?id=${matchId}`);
     fetchMatches();
 };

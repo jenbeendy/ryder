@@ -26,9 +26,30 @@
         .actions button.edit { background: #38a169; }
         .actions button.edit:hover { background: #276749; }
         .actions button:hover { background: #9b2c2c; }
+        .match-card { display: block !important; padding: 0.75rem 1rem !important; }
+        .match-meta { font-size: 0.82rem; color: #6b7280; margin-bottom: 0.25rem; }
+        .match-teams { font-weight: 700; font-size: 1rem; color: #111827; margin-bottom: 0.2rem; }
+        .match-players { font-size: 0.8rem; color: #4b5563; }
+        .match-badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; vertical-align: middle; margin-right: 4px; }
+        .badge-prepared { background: #dbeafe; color: #1d4ed8; }
+        .badge-running { background: #d1fae5; color: #065f46; }
+        .badge-completed { background: #f3f4f6; color: #374151; }
+        .match-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e5e7eb; }
+        .match-actions button { padding: 0.28rem 0.8rem; font-size: 0.82rem; margin: 0; }
+        .match-actions .btn-danger { background: #e53e3e; }
+        .match-actions .btn-danger:hover { background: #9b2c2c; }
+        .match-actions .btn-lock { background: #6b7280; }
+        .match-actions .btn-lock:hover { background: #4b5563; }
+        .match-actions .btn-lock.locked { background: #b45309; }
+        .match-actions .btn-lock.locked:hover { background: #78350f; }
+        .match-actions .btn-reset { background: #7c3aed; }
+        .match-actions .btn-reset:hover { background: #5b21b6; }
+        .match-filter-bar { display: flex; gap: 6px; margin: 1rem 0 0.5rem; }
+        .filter-btn { background: #e5e7eb; color: #374151; border: none; border-radius: 6px; padding: 0.3rem 1rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; margin: 0; }
+        .filter-btn:hover { background: #d1d5db; }
+        .filter-btn.active { background: #2563eb; color: #fff; }
+        .filter-sep { width: 1px; background: #d1d5db; margin: 0 4px; }
         @media (max-width: 700px) { .admin-container { padding: 1rem 0.2rem; } }
-        #score-modal { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); align-items:center; justify-content:center; }
-        #score-modal > div { background:#fff; padding:2rem; border-radius:12px; min-width:300px; max-width:90vw; }
     </style>
 </head>
 <body>
@@ -109,19 +130,16 @@
                 <select id="match-players-b" multiple required></select>
                 <button type="submit">Add Match</button>
             </form>
-            <ul id="matches-list"></ul>
-            <div id="score-modal">
-              <div>
-                <h3>Enter Match Score</h3>
-                <form id="score-form">
-                  <input type="hidden" id="score-match-id">
-                  <div id="score-team-a"></div>
-                  <div id="score-team-b"></div>
-                  <button type="submit">Save Score</button>
-                  <button type="button" onclick="closeScoreModal()">Cancel</button>
-                </form>
-              </div>
+            <div class="match-filter-bar">
+                <button class="filter-btn active" data-filter="all" onclick="setMatchFilter('all')">All</button>
+                <button class="filter-btn" data-filter="prepared" onclick="setMatchFilter('prepared')">Prepared</button>
+                <button class="filter-btn" data-filter="running" onclick="setMatchFilter('running')">Running</button>
+                <button class="filter-btn" data-filter="completed" onclick="setMatchFilter('completed')">Completed</button>
+                <span class="filter-sep"></span>
+                <button class="filter-btn" data-lock="locked" onclick="setLockFilter('locked')">Locked</button>
+                <button class="filter-btn" data-lock="unlocked" onclick="setLockFilter('unlocked')">Unlocked</button>
             </div>
+            <ul id="matches-list"></ul>
         </div>
     </div>
 </body>
