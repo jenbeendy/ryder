@@ -38,7 +38,7 @@ function renderMatchGroup(listId, matches, label) {
     matches.forEach(m => {
         const round = (m.round === null || m.round === undefined) ? null : m.round;
         if (round !== lastRound && (round !== null || seenRound)) {
-            ul.innerHTML += `<li class="round-header">${round !== null ? 'Kolo ' + round : 'Ostatní zápasy'}</li>`;
+            ul.innerHTML += `<li class="round-header">${round !== null ? round + '. kolo' : 'Ostatní zápasy'}</li>`;
         }
         if (round !== null) seenRound = true;
         lastRound = round;
@@ -90,7 +90,7 @@ function renderBracket(allMatches) {
         label.className = 'bracket-round-label';
         label.style.gridColumn = idx + 1;
         label.style.gridRow = '1';
-        label.textContent = `Kolo ${r}`;
+        label.textContent = `${r}. kolo`;
         grid.appendChild(label);
         const existing = bracketMatches.filter(m => m.round === r);
         for (let slot = 0; slot < slotCount; slot++) {
