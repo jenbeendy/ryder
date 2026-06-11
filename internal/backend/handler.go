@@ -727,9 +727,18 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		grouped[status] = append(grouped[status], m)
 	}
-	// Sort each status group: date/time primary (undated last), round/bracket_slot as tiebreaker.
+	// Sort each status group: round number primary (no round last), then date/time within same
+	// round (undated last), then bracket_slot as tiebreaker.
 	sortByRoundThenSchedule := func(group []map[string]interface{}) {
 		sort.SliceStable(group, func(i, j int) bool {
+			ri, riOk := group[i]["round"].(int)
+			rj, rjOk := group[j]["round"].(int)
+			if riOk != rjOk {
+				return riOk
+			}
+			if riOk && ri != rj {
+				return ri < rj
+			}
 			di, _ := group[i]["match_date"].(string)
 			dj, _ := group[j]["match_date"].(string)
 			ti, _ := group[i]["start_time"].(string)
@@ -744,14 +753,6 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 			}
 			if ti != tj {
 				return ti < tj
-			}
-			ri, riOk := group[i]["round"].(int)
-			rj, rjOk := group[j]["round"].(int)
-			if riOk != rjOk {
-				return riOk
-			}
-			if riOk && ri != rj {
-				return ri < rj
 			}
 			si, _ := group[i]["bracket_slot"].(int)
 			sj, _ := group[j]["bracket_slot"].(int)
