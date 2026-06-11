@@ -163,6 +163,10 @@ function matchRow(m) {
     }
     const left = playerList(m.players_a);
     const right = playerList(m.players_b);
+    const aWins = m.score_a !== undefined && m.score_b !== undefined && m.score_a > m.score_b;
+    const bWins = m.score_a !== undefined && m.score_b !== undefined && m.score_b > m.score_a;
+    const leftClass = aWins ? ' class="match-team-winner"' : '';
+    const rightClass = bWins ? ' class="match-team-winner"' : '';
     let scoreHtml = '';
     let holesLeft = null;
     // Determine holes to play based on format and holeResults
@@ -177,14 +181,13 @@ function matchRow(m) {
         holesLeft = count;
     }
     if ((m.status === 'completed' || m.status === 'running') && m.score_text) {
-        // Split score_text into team and score if possible
         const match = m.score_text.match(/^(.*?) (\d+ Up)$/);
         if (match) {
-            scoreHtml = `<div class='score-team'>${match[1]}</div><div class='score-value'>${match[2]}</div>`;
+            scoreHtml = `<div class='score-value'>${match[2]}</div>`;
         } else if (m.score_text === 'A/S') {
-            scoreHtml = `<div class='score-team'>All Square</div>`;
+            scoreHtml = `<div class='score-value'>A/S</div>`;
         } else {
-            scoreHtml = `<div class='score-team'>${m.score_text}</div>`;
+            scoreHtml = `<div class='score-value'>${m.score_text}</div>`;
         }
         if (holesLeft !== null) {
             scoreHtml += `<div class='score-holes-left'>(Zbývá ${holesLeft})</div>`;
@@ -206,7 +209,7 @@ function matchRow(m) {
         startTimeHtml = `<span class='match-score'>${scoreHtml}</span>`;
     }
     return `<li><span class="match-link" onclick="goToScore(${m.id})">
-        <span class='match-players'>${left}<br>${right}</span>
+        <span class='match-players'><span${leftClass}>${left}</span><br><span${rightClass}>${right}</span></span>
         ${startTimeHtml}
     </span></li>`;
 }
