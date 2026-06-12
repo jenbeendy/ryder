@@ -11,16 +11,49 @@ let pongTimeout = null;
 async function fetchDashboard() {
     const res = await fetch('/api/dashboard');
     const data = await res.json();
-    renderMatches(data.matches || {});
+    renderMatches(data.matches || {}, data.round_dates || {});
 }
 
-function renderMatches(grouped) {
-    renderMatchGroup('matches-running', grouped.running || [], 'Running');
-    renderMatchGroup('matches-prepared', grouped.prepared || [], 'Prepared');
-    renderBracket([].concat(grouped.completed || [], grouped.running || [], grouped.prepared || []));
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) return `${parseInt(parts[2])}.${parseInt(parts[1])}.${parts[0]}`;
+    return dateStr;
 }
 
-function renderMatchGroup(listId, matches, label) {
+function getRoundLabel(roundNum, minRound, numRounds) {
+    const posFromEnd = numRounds - 1 - (roundNum - minRound);
+    if (posFromEnd === 0) return 'Finále';
+    if (posFromEnd === 1) return 'Semifinále';
+    if (posFromEnd === 2) return 'Čtvrtfinále';
+    if (posFromEnd === 3) return 'Osmifinále';
+    return roundNum + '. kolo';
+}
+
+function computeRoundLabelFn(allMatches) {
+    const bracketMatches = allMatches.filter(m =>
+        m.round !== null && m.round !== undefined && m.bracket_slot !== null && m.bracket_slot !== undefined);
+    if (bracketMatches.length === 0) return (r) => r + '. kolo';
+    const minRound = Math.min(...bracketMatches.map(m => m.round));
+    let maxImplied = 1;
+    bracketMatches.forEach(m => {
+        const span = Math.pow(2, m.round - minRound);
+        maxImplied = Math.max(maxImplied, (m.bracket_slot + 1) * span);
+    });
+    const firstRoundSize = Math.pow(2, Math.ceil(Math.log2(maxImplied)));
+    const numRounds = Math.round(Math.log2(firstRoundSize)) + 1;
+    return (r) => getRoundLabel(r, minRound, numRounds);
+}
+
+function renderMatches(grouped, roundDates) {
+    const allMatches = [].concat(grouped.completed || [], grouped.running || [], grouped.prepared || []);
+    const roundLabelFn = computeRoundLabelFn(allMatches);
+    renderMatchGroup('matches-running', grouped.running || [], 'Running', roundLabelFn);
+    renderMatchGroup('matches-prepared', grouped.prepared || [], 'Prepared', roundLabelFn);
+    renderBracket(allMatches, roundDates || {});
+}
+
+function renderMatchGroup(listId, matches, label, roundLabelFn) {
     let ul = document.getElementById(listId);
     if (!ul) {
         // fallback for old dashboard.html
@@ -38,7 +71,8 @@ function renderMatchGroup(listId, matches, label) {
     matches.forEach(m => {
         const round = (m.round === null || m.round === undefined) ? null : m.round;
         if (round !== lastRound && (round !== null || seenRound)) {
-            ul.innerHTML += `<li class="round-header">${round !== null ? round + '. kolo' : 'Ostatní zápasy'}</li>`;
+            const lbl = round !== null ? (roundLabelFn ? roundLabelFn(round) : round + '. kolo') : 'Ostatní zápasy';
+            ul.innerHTML += `<li class="round-header">${lbl}</li>`;
         }
         if (round !== null) seenRound = true;
         lastRound = round;
@@ -48,7 +82,7 @@ function renderMatchGroup(listId, matches, label) {
 
 // --- Bracket tree (rounds are positioned purely from match.round + match.bracket_slot;
 // slot i/i+1 in round N feed slot floor(i/2) in round N+1, the standard single-elim numbering) ---
-function renderBracket(allMatches) {
+function renderBracket(allMatches, roundDates) {
     const section = document.getElementById('bracket-section');
     const container = document.getElementById('bracket-view');
     if (!section || !container) return;
@@ -90,7 +124,18 @@ function renderBracket(allMatches) {
         label.className = 'bracket-round-label';
         label.style.gridColumn = idx + 1;
         label.style.gridRow = '1';
-        label.textContent = `${r}. kolo`;
+        const titleEl = document.createElement('div');
+        titleEl.textContent = getRoundLabel(r, minRound, numRounds);
+        label.appendChild(titleEl);
+        const rd = roundDates && roundDates[String(r)];
+        if (rd && (rd.date_from || rd.date_to)) {
+            const dateEl = document.createElement('div');
+            dateEl.className = 'bracket-round-date';
+            let dateStr = formatDate(rd.date_from);
+            if (rd.date_to && rd.date_to !== rd.date_from) dateStr += ' – ' + formatDate(rd.date_to);
+            dateEl.textContent = dateStr;
+            label.appendChild(dateEl);
+        }
         grid.appendChild(label);
         const existing = bracketMatches.filter(m => m.round === r);
         for (let slot = 0; slot < slotCount; slot++) {

@@ -103,6 +103,9 @@ func StartServer() {
 		// Handle other methods (GET, etc.) if needed
 	})
 	// Score endpoint
+	mux.HandleFunc("/api/round-dates/list", GetRoundDates)
+	mux.HandleFunc("/api/round-dates/set", wrapAndBroadcast(SetRoundDate))
+
 	mux.HandleFunc("/api/score/submit", wrapAndBroadcast(SubmitScore))
 	// Dashboard
 	mux.HandleFunc("/api/dashboard", Dashboard)

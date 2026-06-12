@@ -336,6 +336,91 @@ document.getElementById('match-form').onsubmit = async function(e) {
     document.getElementById('match-id').value = '';
 };
 
+// --- Round Dates ---
+window.fetchRoundDates = async function() {
+    const [matchesRes, rdRes] = await Promise.all([
+        fetch('/api/match/list'),
+        fetch('/api/round-dates/list')
+    ]);
+    const matchData = await matchesRes.json();
+    const rdData = await rdRes.json();
+    const fromMatches = new Set(
+        (matchData.matches || []).filter(m => m.round != null).map(m => m.round)
+    );
+    const rdMap = {};
+    (rdData.round_dates || []).forEach(rd => {
+        rdMap[rd.round] = rd;
+        fromMatches.add(rd.round);
+    });
+    const rounds = [...fromMatches].sort((a, b) => a - b);
+    renderRoundDates(rounds, rdMap);
+};
+
+function renderRoundDates(rounds, rdMap) {
+    const container = document.getElementById('rounds-dates-list');
+    container.innerHTML = '';
+    // Form to add a new round
+    const addDiv = document.createElement('div');
+    addDiv.style.cssText = 'margin-bottom:1.2rem;padding:0.75rem 1rem;background:#e8f0fe;border-radius:8px;';
+    addDiv.innerHTML = `
+        <strong>Přidat kolo</strong>
+        <div style="display:flex;gap:1rem;align-items:center;margin-top:0.4rem;flex-wrap:wrap;">
+            <label style="margin:0;display:flex;align-items:center;gap:0.3rem;">Kolo:
+                <input type="number" id="rd-new-round" min="1" placeholder="č." style="width:4em;margin:0;padding:0.3rem;">
+            </label>
+            <label style="margin:0;display:flex;align-items:center;gap:0.3rem;">Od:
+                <input type="date" id="rd-new-from" style="width:auto;margin:0;padding:0.3rem;">
+            </label>
+            <label style="margin:0;display:flex;align-items:center;gap:0.3rem;">Do:
+                <input type="date" id="rd-new-to" style="width:auto;margin:0;padding:0.3rem;">
+            </label>
+            <button onclick="addNewRoundDate()" style="margin:0;padding:0.3rem 1rem;font-size:0.9rem;">Přidat</button>
+        </div>`;
+    container.appendChild(addDiv);
+    rounds.forEach(r => {
+        const rd = rdMap[r] || {};
+        const div = document.createElement('div');
+        div.style.cssText = 'margin-bottom:1rem;padding:0.75rem 1rem;background:#f3f7ff;border-radius:8px;';
+        div.innerHTML = `
+            <strong>Kolo ${r}</strong>
+            <div style="display:flex;gap:1rem;align-items:center;margin-top:0.4rem;flex-wrap:wrap;">
+                <label style="margin:0;display:flex;align-items:center;gap:0.3rem;">Od:
+                    <input type="date" id="rd-from-${r}" value="${rd.date_from || ''}" style="width:auto;margin:0;padding:0.3rem;">
+                </label>
+                <label style="margin:0;display:flex;align-items:center;gap:0.3rem;">Do:
+                    <input type="date" id="rd-to-${r}" value="${rd.date_to || ''}" style="width:auto;margin:0;padding:0.3rem;">
+                </label>
+                <button onclick="saveRoundDate(${r})" style="margin:0;padding:0.3rem 1rem;font-size:0.9rem;">Uložit</button>
+            </div>`;
+        container.appendChild(div);
+    });
+}
+
+window.addNewRoundDate = async function() {
+    const roundVal = document.getElementById('rd-new-round').value;
+    if (!roundVal) return;
+    const round = parseInt(roundVal);
+    const dateFrom = document.getElementById('rd-new-from').value;
+    const dateTo = document.getElementById('rd-new-to').value;
+    await fetch('/api/round-dates/set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ round, date_from: dateFrom, date_to: dateTo })
+    });
+    fetchRoundDates();
+};
+
+window.saveRoundDate = async function(round) {
+    const dateFrom = document.getElementById(`rd-from-${round}`).value;
+    const dateTo = document.getElementById(`rd-to-${round}`).value;
+    await fetch('/api/round-dates/set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ round, date_from: dateFrom, date_to: dateTo })
+    });
+    fetchRoundDates();
+};
+
 window.showTab = function(tabId) {
     document.querySelectorAll('.tab-btn').forEach(t =>
         t.classList.toggle('active', t.dataset.tab === tabId)

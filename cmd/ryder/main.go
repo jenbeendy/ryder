@@ -64,6 +64,11 @@ func autoMigrate(db *sql.DB) {
 			result TEXT,
 			PRIMARY KEY (match_id, hole)
 		);`,
+		`CREATE TABLE IF NOT EXISTS round_dates (
+			round INTEGER PRIMARY KEY,
+			date_from TEXT,
+			date_to TEXT
+		);`,
 	}
 	for _, stmt := range tables {
 		if _, err := db.Exec(stmt); err != nil {

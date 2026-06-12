@@ -59,6 +59,7 @@
             <button class="tab-btn active" data-tab="players-section" onclick="showTab('players-section')">Players</button>
             <button class="tab-btn" data-tab="teams-section" onclick="showTab('teams-section')">Teams</button>
             <button class="tab-btn" data-tab="matches-section" onclick="showTab('matches-section')">Matches</button>
+            <button class="tab-btn" data-tab="rounds-section" onclick="showTab('rounds-section'); fetchRoundDates()">Kola</button>
         </div>
         <div class="section active" id="players-section">
             <h2>Players</h2>
@@ -140,6 +141,10 @@
                 <button class="filter-btn" data-lock="unlocked" onclick="setLockFilter('unlocked')">Unlocked</button>
             </div>
             <ul id="matches-list"></ul>
+        </div>
+        <div class="section" id="rounds-section">
+            <h2>Kola — Termíny</h2>
+            <div id="rounds-dates-list"></div>
         </div>
     </div>
 </body>

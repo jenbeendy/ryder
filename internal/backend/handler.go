@@ -762,11 +762,66 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 	sortByRoundThenSchedule(grouped["prepared"])
 	sortByRoundThenSchedule(grouped["running"])
 	sortByRoundThenSchedule(grouped["completed"])
+	// Fetch round dates
+	roundDatesMap := map[string]map[string]string{}
+	rdRows, rdErr := DB.Query("SELECT round, date_from, date_to FROM round_dates")
+	if rdErr == nil {
+		defer rdRows.Close()
+		for rdRows.Next() {
+			var rnd int
+			var df, dt sql.NullString
+			rdRows.Scan(&rnd, &df, &dt)
+			roundDatesMap[strconv.Itoa(rnd)] = map[string]string{"date_from": df.String, "date_to": dt.String}
+		}
+	}
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"teams":           teams,
 		"matches":         grouped,
 		"projectedScores": projectedScores,
+		"round_dates":     roundDatesMap,
 	})
+}
+
+// --- Round Dates Handlers ---
+func GetRoundDates(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	rows, err := DB.Query("SELECT round, date_from, date_to FROM round_dates ORDER BY round")
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"round_dates": []interface{}{}})
+		return
+	}
+	defer rows.Close()
+	dates := []map[string]interface{}{}
+	for rows.Next() {
+		var rnd int
+		var df, dt sql.NullString
+		rows.Scan(&rnd, &df, &dt)
+		dates = append(dates, map[string]interface{}{"round": rnd, "date_from": df.String, "date_to": dt.String})
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"round_dates": dates})
+}
+
+type RoundDateBody struct {
+	Round    int    `json:"round"`
+	DateFrom string `json:"date_from"`
+	DateTo   string `json:"date_to"`
+}
+
+func SetRoundDate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var body RoundDateBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	_, err := DB.Exec(`INSERT INTO round_dates (round, date_from, date_to) VALUES (?, ?, ?)
+		ON CONFLICT(round) DO UPDATE SET date_from=excluded.date_from, date_to=excluded.date_to`,
+		body.Round, body.DateFrom, body.DateTo)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.WriteHeader(200)
 }
 
 func HandleMainPage(w http.ResponseWriter, r *http.Request) {
