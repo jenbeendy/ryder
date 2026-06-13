@@ -596,7 +596,11 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 				var n string
 				var hcp sql.NullFloat64
 				paRows.Scan(&n, &hcp)
-				playersA = append(playersA, map[string]interface{}{"name": n, "hcp": hcp.Float64})
+				var hcpVal interface{}
+				if hcp.Valid {
+					hcpVal = hcp.Float64
+				}
+				playersA = append(playersA, map[string]interface{}{"name": n, "hcp": hcpVal})
 			}
 			paRows.Close()
 			m["players_a"] = playersA
@@ -610,7 +614,11 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 				var n string
 				var hcp sql.NullFloat64
 				pbRows.Scan(&n, &hcp)
-				playersB = append(playersB, map[string]interface{}{"name": n, "hcp": hcp.Float64})
+				var hcpVal interface{}
+				if hcp.Valid {
+					hcpVal = hcp.Float64
+				}
+				playersB = append(playersB, map[string]interface{}{"name": n, "hcp": hcpVal})
 			}
 			pbRows.Close()
 			m["players_b"] = playersB

@@ -204,7 +204,7 @@ function drawBracketConnectors(grid, rounds) {
 function matchRow(m) {
     // Format player lists
     function playerList(players) {
-        return (players || []).map(p => `<span style="white-space:nowrap">${p.name} (${p.hcp ?? ''})</span>`).join(', ');
+        return (players || []).map(p => `<span style="white-space:nowrap">${p.name}${p.hcp != null && p.hcp !== '' ? ` (${p.hcp})` : ''}</span>`).join(', ');
     }
     const left = playerList(m.players_a);
     const right = playerList(m.players_b);
