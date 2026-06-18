@@ -735,6 +735,13 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		grouped[status] = append(grouped[status], m)
 	}
+	// Normalize "8:30" → "08:30" so lexicographic sort works correctly.
+	padTime := func(t string) string {
+		if len(t) > 0 && t[0] != '0' && len(t) < 5 {
+			return "0" + t
+		}
+		return t
+	}
 	// Sort each status group: round number primary (no round last), then date/time within same
 	// round (undated last), then bracket_slot as tiebreaker.
 	sortByRoundThenSchedule := func(group []map[string]interface{}) {
@@ -749,8 +756,10 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 			}
 			di, _ := group[i]["match_date"].(string)
 			dj, _ := group[j]["match_date"].(string)
-			ti, _ := group[i]["start_time"].(string)
-			tj, _ := group[j]["start_time"].(string)
+			tiRaw, _ := group[i]["start_time"].(string)
+			tjRaw, _ := group[j]["start_time"].(string)
+			ti := padTime(tiRaw)
+			tj := padTime(tjRaw)
 			iEmpty := di == "" && ti == ""
 			jEmpty := dj == "" && tj == ""
 			if iEmpty != jEmpty {
@@ -758,6 +767,12 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 			}
 			if di != dj {
 				return di < dj
+			}
+			// Within same date: matches with no time go last.
+			tiEmpty := ti == ""
+			tjEmpty := tj == ""
+			if tiEmpty != tjEmpty {
+				return !tiEmpty
 			}
 			if ti != tj {
 				return ti < tj
