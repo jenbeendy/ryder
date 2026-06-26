@@ -663,11 +663,12 @@ document.getElementById('match-form').onsubmit = async function(e) {
             starting_hole: foursomeHole,
             round
         };
-        await fetch('/api/match/add', {
+        const foursomeRes = await fetch('/api/match/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(foursomePayload)
         });
+        if (!foursomeRes.ok) alert('Foursome match creation failed. Please try again.');
     }
     selectedPlayersA = [];
     selectedPlayersB = [];

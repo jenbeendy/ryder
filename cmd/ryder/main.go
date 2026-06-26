@@ -93,7 +93,7 @@ func autoMigrate(db *sql.DB) {
 func main() {
 	fmt.Println("Hello, Ryder!")
 
-	db, err := sql.Open("sqlite3", "ryder.db")
+	db, err := sql.Open("sqlite3", "ryder.db?_busy_timeout=5000")
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
