@@ -58,6 +58,11 @@
         .filter-btn.active { background: #2563eb; color: #fff; }
         .filter-btn.active:hover { background: #1741a6; }
         @media (max-width: 700px) { .admin-container { padding: 1rem 0.2rem; } }
+        /* Inline match edit panel */
+        .match-edit-panel { border-top: 1px solid #dbeafe; margin-top: 0.65rem; padding-top: 0.65rem; }
+        .edit-panel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-bottom: 8px; }
+        .edit-label { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 2px; font-weight: 600; }
+        .edit-input { padding: 4px 7px; font-size: 0.85rem; margin: 0; width: 100%; box-sizing: border-box; margin-bottom: 0; }
         /* Statistics tab */
         #stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.92rem; }
         #stats-table th { background: #2563eb; color: #fff; padding: 7px 10px; text-align: left; }
@@ -216,6 +221,10 @@
                     <button class="filter-btn" data-filter-format="singles" onclick="setMatchFilter('format','singles')">Singles</button>
                     <button class="filter-btn" data-filter-format="foursome" onclick="setMatchFilter('format','foursome')">Foursome</button>
                     <button class="filter-btn" data-filter-format="texas_scramble" onclick="setMatchFilter('format','texas_scramble')">Texas Scramble</button>
+                </div>
+                <div class="filter-group" id="matches-filter-round-row" style="display:none">
+                    <span class="filter-label">Round:</span>
+                    <div id="matches-filter-round-btns" style="display:contents"></div>
                 </div>
             </div>
             <div id="matches-count" style="font-size:0.82rem;color:#6b7280;margin-top:0.5rem;margin-bottom:-0.25rem;padding-left:2px;"></div>

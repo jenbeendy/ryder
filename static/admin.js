@@ -1,11 +1,16 @@
 // --- Module state ---
 let allPlayers = [];
 let allMatches = [];
+let allTeams = [];
 let matchFilterStatus = 'all';
 let matchFilterFormat = 'all';
+let matchFilterRound = 'all';
 let playerFilterTeam = 'all';
 let selectedPlayersA = [];
 let selectedPlayersB = [];
+let activeEditMatchId = null;
+let editPlayersA = [];
+let editPlayersB = [];
 
 // --- Players ---
 async function fetchPlayers() {
@@ -167,6 +172,7 @@ async function fetchMatches() {
     if (!res.ok) return;
     const data = await res.json();
     allMatches = data.matches || [];
+    renderMatchRoundFilter();
     applyMatchFilters();
 }
 
@@ -174,7 +180,19 @@ function applyMatchFilters() {
     let filtered = allMatches;
     if (matchFilterStatus !== 'all') filtered = filtered.filter(m => m.status === matchFilterStatus);
     if (matchFilterFormat !== 'all') filtered = filtered.filter(m => m.format === matchFilterFormat);
+    if (matchFilterRound !== 'all') filtered = filtered.filter(m => (m.round ?? 0) === matchFilterRound);
     renderMatches(filtered);
+}
+
+function renderMatchRoundFilter() {
+    const container = document.getElementById('matches-filter-round-btns');
+    if (!container) return;
+    const rounds = [...new Set(allMatches.map(m => m.round ?? 0))].sort((a, b) => a - b);
+    container.innerHTML =
+        `<button class="filter-btn${matchFilterRound === 'all' ? ' active' : ''}" data-filter-round="all" onclick="setMatchFilter('round','all')">All</button>` +
+        rounds.map(r => `<button class="filter-btn${matchFilterRound === r ? ' active' : ''}" data-filter-round="${r}" onclick="setMatchFilter('round',${r})">${r}</button>`).join('');
+    const row = document.getElementById('matches-filter-round-row');
+    if (row) row.style.display = rounds.length > 0 ? '' : 'none';
 }
 
 window.setMatchFilter = function(type, value) {
@@ -183,10 +201,15 @@ window.setMatchFilter = function(type, value) {
         document.querySelectorAll('[data-filter-status]').forEach(btn =>
             btn.classList.toggle('active', btn.dataset.filterStatus === value)
         );
-    } else {
+    } else if (type === 'format') {
         matchFilterFormat = value;
         document.querySelectorAll('[data-filter-format]').forEach(btn =>
             btn.classList.toggle('active', btn.dataset.filterFormat === value)
+        );
+    } else if (type === 'round') {
+        matchFilterRound = value === 'all' ? 'all' : parseInt(value);
+        document.querySelectorAll('[data-filter-round]').forEach(btn =>
+            btn.classList.toggle('active', btn.dataset.filterRound === String(value))
         );
     }
     applyMatchFilters();
@@ -220,6 +243,7 @@ function renderMatches(matches) {
         metaParts.push(`Hole ${m.starting_hole || 1}`);
         const card = document.createElement('div');
         card.className = 'match-card';
+        card.dataset.matchId = m.id;
         card.innerHTML = `
             <div class="match-card-header">
                 <div class="match-badges">
@@ -240,7 +264,7 @@ function renderMatches(matches) {
                 </div>
             </div>
             <div class="match-card-actions">
-                <button class="edit" onclick="editMatch(${m.id})">Edit</button>
+                <button class="edit" onclick="openInlineEdit(${m.id})">Edit</button>
                 <button class="danger" onclick="removeMatch(${m.id})">Remove</button>
                 <button onclick="openScoreModal(${m.id}, '${m.team_a.name}', '${m.team_b.name}')">Enter Score</button>
             </div>
@@ -580,52 +604,276 @@ function addTwoHours(timeStr) {
 // --- Populate match form (team dropdowns) ---
 async function populateMatchForm() {
     const teamsRes = await fetch('/api/team/list');
-    const teams = (await teamsRes.json()).teams || [];
+    allTeams = (await teamsRes.json()).teams || [];
     const teamA = document.getElementById('match-team-a');
     const teamB = document.getElementById('match-team-b');
     teamA.innerHTML = teamB.innerHTML = '';
-    teams.forEach(t => {
+    allTeams.forEach(t => {
         teamA.innerHTML += `<option value="${t.id}">${t.name}</option>`;
         teamB.innerHTML += `<option value="${t.id}">${t.name}</option>`;
     });
-    if (teams.length > 1) teamB.selectedIndex = 1;
+    if (allTeams.length > 1) teamB.selectedIndex = 1;
 }
 
-// --- Edit Match Handler ---
-window.editMatch = async function(matchId) {
-    const res = await fetch('/api/match/list');
-    if (!res.ok) return;
-    const data = await res.json();
-    const match = (data.matches || []).find(m => m.id === matchId);
+// --- Inline Edit Match ---
+function getEditMaxPlayers() {
+    const fmt = document.getElementById('edit-match-format');
+    return (fmt && (fmt.value === 'foursome' || fmt.value === 'texas_scramble')) ? 2 : 1;
+}
+
+function renderEditTags(side) {
+    const selected = side === 'a' ? editPlayersA : editPlayersB;
+    const container = document.getElementById(`edit-tags-${side}`);
+    if (!container) return;
+    container.innerHTML = '';
+    selected.forEach(p => {
+        const span = document.createElement('span');
+        span.className = 'player-tag';
+        span.innerHTML = `${p.name}<button type="button" class="tag-remove" data-id="${p.id}" data-side="${side}">×</button>`;
+        span.querySelector('.tag-remove').addEventListener('click', function() {
+            removeEditPlayer(parseInt(this.dataset.id), this.dataset.side);
+        });
+        container.appendChild(span);
+    });
+}
+
+window.removeEditPlayer = function(playerId, side) {
+    if (side === 'a') editPlayersA = editPlayersA.filter(p => p.id !== playerId);
+    else editPlayersB = editPlayersB.filter(p => p.id !== playerId);
+    renderEditTags(side);
+};
+
+function addEditPlayer(player, side) {
+    const max = getEditMaxPlayers();
+    const selected = side === 'a' ? editPlayersA : editPlayersB;
+    const other = side === 'a' ? editPlayersB : editPlayersA;
+    if (other.some(p => p.id === player.id)) return;
+    if (selected.length >= max) return;
+    if (selected.some(p => p.id === player.id)) return;
+    selected.push({ id: player.id, name: player.name, team_id: player.team_id });
+    renderEditTags(side);
+}
+
+window.enforceEditPlayerCapacity = function() {
+    const max = getEditMaxPlayers();
+    if (editPlayersA.length > max) { editPlayersA = editPlayersA.slice(0, max); renderEditTags('a'); }
+    if (editPlayersB.length > max) { editPlayersB = editPlayersB.slice(0, max); renderEditTags('b'); }
+};
+
+function createEditTypeahead(side) {
+    const input = document.getElementById(`edit-input-${side}`);
+    const dropdown = document.getElementById(`edit-dropdown-${side}`);
+    if (!input || !dropdown) return;
+    let highlightedIndex = -1;
+
+    function getFiltered(query) {
+        const q = query.toLowerCase().trim();
+        const both = [...editPlayersA, ...editPlayersB];
+        const teamEl = document.getElementById(`edit-team-${side}`);
+        const teamId = teamEl ? parseInt(teamEl.value) : NaN;
+        return allPlayers.filter(p =>
+            (!q || p.name.toLowerCase().includes(q)) &&
+            !both.some(s => s.id === p.id) &&
+            p.team_id === teamId
+        ).slice(0, 20);
+    }
+
+    function renderDropdown(players) {
+        dropdown.innerHTML = '';
+        highlightedIndex = -1;
+        if (!players.length) { dropdown.classList.add('hidden'); return; }
+        players.forEach(p => {
+            const li = document.createElement('li');
+            li.textContent = p.team_name ? `${p.name} (${p.team_name})` : p.name;
+            li.addEventListener('mousedown', e => {
+                e.preventDefault();
+                addEditPlayer(p, side);
+                input.value = '';
+                dropdown.classList.add('hidden');
+            });
+            dropdown.appendChild(li);
+        });
+        dropdown.classList.remove('hidden');
+    }
+
+    input.addEventListener('focus', () => renderDropdown(getFiltered(input.value)));
+    input.addEventListener('input', () => renderDropdown(getFiltered(input.value)));
+    input.addEventListener('blur', () => setTimeout(() => dropdown.classList.add('hidden'), 200));
+    input.addEventListener('keydown', e => {
+        const items = dropdown.querySelectorAll('li');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+            items.forEach((li, i) => li.classList.toggle('highlighted', i === highlightedIndex));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            highlightedIndex = Math.max(highlightedIndex - 1, 0);
+            items.forEach((li, i) => li.classList.toggle('highlighted', i === highlightedIndex));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const idx = highlightedIndex >= 0 ? highlightedIndex : 0;
+            if (items[idx]) items[idx].dispatchEvent(new MouseEvent('mousedown'));
+        } else if (e.key === 'Escape') {
+            dropdown.classList.add('hidden');
+        } else if (e.key === 'Backspace' && input.value === '') {
+            const selected = side === 'a' ? editPlayersA : editPlayersB;
+            if (selected.length) removeEditPlayer(selected[selected.length - 1].id, side);
+        }
+    });
+}
+
+window.openInlineEdit = function(matchId) {
+    if (activeEditMatchId !== null) {
+        const oldCard = document.querySelector(`.match-card[data-match-id="${activeEditMatchId}"]`);
+        if (oldCard) {
+            const panel = oldCard.querySelector('.match-edit-panel');
+            if (panel) panel.remove();
+            const actions = oldCard.querySelector('.match-card-actions');
+            if (actions) actions.style.display = '';
+        }
+        if (activeEditMatchId === matchId) { activeEditMatchId = null; editPlayersA = []; editPlayersB = []; return; }
+    }
+
+    const match = allMatches.find(m => m.id === matchId);
     if (!match) return;
+    activeEditMatchId = matchId;
 
-    selectedPlayersA = [];
-    selectedPlayersB = [];
-    renderTags('a');
-    renderTags('b');
-
-    document.getElementById('match-id').value = match.id;
-    document.getElementById('match-round').value = match.round ?? 0;
-    document.getElementById('match-start-time').value = match.start_time || '';
-    document.getElementById('match-starting-hole').value = match.starting_hole || 1;
-    document.getElementById('match-format').value = match.format;
-    document.getElementById('match-team-a').value = match.team_a.id;
-    document.getElementById('match-team-b').value = match.team_b.id;
-    document.getElementById('match-holes').value = match.holes || '18';
-
-    (match.team_a.players || []).forEach(mp => {
-        const full = allPlayers.find(p => p.id === mp.id) || { id: mp.id, name: mp.name, team_id: match.team_a.id };
-        selectedPlayersA.push({ id: full.id, name: full.name, team_id: full.team_id });
+    editPlayersA = (match.team_a.players || []).map(mp => {
+        const full = allPlayers.find(p => p.id === mp.id);
+        return full ? { id: full.id, name: full.name, team_id: full.team_id } : { id: mp.id, name: mp.name, team_id: match.team_a.id };
     });
-    (match.team_b.players || []).forEach(mp => {
-        const full = allPlayers.find(p => p.id === mp.id) || { id: mp.id, name: mp.name, team_id: match.team_b.id };
-        selectedPlayersB.push({ id: full.id, name: full.name, team_id: full.team_id });
+    editPlayersB = (match.team_b.players || []).map(mp => {
+        const full = allPlayers.find(p => p.id === mp.id);
+        return full ? { id: full.id, name: full.name, team_id: full.team_id } : { id: mp.id, name: mp.name, team_id: match.team_b.id };
     });
-    renderTags('a');
-    renderTags('b');
 
-    updateFoursomeAutoRow();
-    document.querySelector('#match-form button[type="submit"]').textContent = 'Save Match';
+    const card = document.querySelector(`.match-card[data-match-id="${matchId}"]`);
+    if (!card) return;
+
+    const actions = card.querySelector('.match-card-actions');
+    if (actions) actions.style.display = 'none';
+
+    const teamsOptions = allTeams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    const startingHoleOptions = [...Array(18)].map((_, i) =>
+        `<option value="${i+1}"${(match.starting_hole || 1) === i+1 ? ' selected' : ''}>${i+1}</option>`
+    ).join('');
+
+    const panel = document.createElement('div');
+    panel.className = 'match-edit-panel';
+    panel.innerHTML = `
+        <div class="edit-panel-grid">
+            <div>
+                <label class="edit-label">Round</label>
+                <input type="number" id="edit-round" value="${match.round ?? 0}" min="1" class="edit-input">
+            </div>
+            <div>
+                <label class="edit-label">Start Time</label>
+                <input type="text" id="edit-start-time" value="${match.start_time || ''}" placeholder="h:mm" class="edit-input">
+            </div>
+            <div>
+                <label class="edit-label">Starting Hole</label>
+                <select id="edit-starting-hole" class="edit-input">${startingHoleOptions}</select>
+            </div>
+            <div>
+                <label class="edit-label">Format</label>
+                <select id="edit-match-format" onchange="enforceEditPlayerCapacity()" class="edit-input">
+                    <option value="singles"${match.format === 'singles' ? ' selected' : ''}>Singles</option>
+                    <option value="foursome"${match.format === 'foursome' ? ' selected' : ''}>Foursome</option>
+                    <option value="texas_scramble"${match.format === 'texas_scramble' ? ' selected' : ''}>Texas Scramble</option>
+                </select>
+            </div>
+            <div>
+                <label class="edit-label">Holes</label>
+                <select id="edit-holes" class="edit-input">
+                    <option value="18"${(match.holes || '18') === '18' ? ' selected' : ''}>18 Holes</option>
+                    <option value="9"${match.holes === '9' ? ' selected' : ''}>9 Holes</option>
+                </select>
+            </div>
+        </div>
+        <div class="edit-panel-grid" style="grid-template-columns:1fr 1fr;">
+            <div>
+                <label class="edit-label">Team A</label>
+                <select id="edit-team-a" class="edit-input">${teamsOptions}</select>
+            </div>
+            <div>
+                <label class="edit-label">Team B</label>
+                <select id="edit-team-b" class="edit-input">${teamsOptions}</select>
+            </div>
+        </div>
+        <div class="edit-panel-grid" style="grid-template-columns:1fr 1fr;">
+            <div>
+                <label class="edit-label">Players A</label>
+                <div class="player-tags" id="edit-tags-a"></div>
+                <div class="typeahead-widget" style="margin:0;">
+                    <input type="text" id="edit-input-a" class="typeahead-input edit-input" placeholder="Add player…" autocomplete="off">
+                    <ul class="typeahead-dropdown hidden" id="edit-dropdown-a"></ul>
+                </div>
+            </div>
+            <div>
+                <label class="edit-label">Players B</label>
+                <div class="player-tags" id="edit-tags-b"></div>
+                <div class="typeahead-widget" style="margin:0;">
+                    <input type="text" id="edit-input-b" class="typeahead-input edit-input" placeholder="Add player…" autocomplete="off">
+                    <ul class="typeahead-dropdown hidden" id="edit-dropdown-b"></ul>
+                </div>
+            </div>
+        </div>
+        <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;">
+            <button type="button" onclick="saveInlineEdit(${matchId})" style="font-size:0.85rem;padding:5px 14px;margin:0;">Save</button>
+            <button type="button" onclick="cancelInlineEdit()" style="font-size:0.85rem;padding:5px 14px;margin:0;background:#6b7280;">Cancel</button>
+        </div>
+    `;
+    card.appendChild(panel);
+
+    document.getElementById('edit-team-a').value = match.team_a.id;
+    document.getElementById('edit-team-b').value = match.team_b.id;
+
+    renderEditTags('a');
+    renderEditTags('b');
+    createEditTypeahead('a');
+    createEditTypeahead('b');
+};
+
+window.cancelInlineEdit = function() {
+    if (activeEditMatchId === null) return;
+    const card = document.querySelector(`.match-card[data-match-id="${activeEditMatchId}"]`);
+    if (card) {
+        const panel = card.querySelector('.match-edit-panel');
+        if (panel) panel.remove();
+        const actions = card.querySelector('.match-card-actions');
+        if (actions) actions.style.display = '';
+    }
+    activeEditMatchId = null;
+    editPlayersA = [];
+    editPlayersB = [];
+};
+
+window.saveInlineEdit = async function(matchId) {
+    if (!editPlayersA.length || !editPlayersB.length) {
+        alert('Select at least 1 player per side');
+        return;
+    }
+    const payload = {
+        id: matchId,
+        round: parseInt(document.getElementById('edit-round').value) || 0,
+        start_time: document.getElementById('edit-start-time').value,
+        starting_hole: parseInt(document.getElementById('edit-starting-hole').value) || 1,
+        format: document.getElementById('edit-match-format').value,
+        holes: document.getElementById('edit-holes').value,
+        team_a: parseInt(document.getElementById('edit-team-a').value),
+        team_b: parseInt(document.getElementById('edit-team-b').value),
+        players_a: editPlayersA.map(p => p.id),
+        players_b: editPlayersB.map(p => p.id),
+    };
+    await fetch('/api/match/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    activeEditMatchId = null;
+    editPlayersA = [];
+    editPlayersB = [];
+    await fetchMatches();
 };
 
 // --- Match Form Submission ---
