@@ -215,6 +215,7 @@ function renderMatches(matches) {
         const formatLabel = FORMAT_LABEL[m.format] || m.format;
         const statusLabel = STATUS_LABEL[m.status] || m.status;
         const metaParts = [];
+        metaParts.push(`Kolo ${m.round ?? 0}`);
         if (m.start_time) metaParts.push(m.start_time);
         metaParts.push(`Hole ${m.starting_hole || 1}`);
         const card = document.createElement('div');
@@ -604,6 +605,7 @@ window.editMatch = async function(matchId) {
     renderTags('b');
 
     document.getElementById('match-id').value = match.id;
+    document.getElementById('match-round').value = match.round ?? 0;
     document.getElementById('match-start-time').value = match.start_time || '';
     document.getElementById('match-starting-hole').value = match.starting_hole || 1;
     document.getElementById('match-format').value = match.format;
@@ -641,9 +643,10 @@ document.getElementById('match-form').onsubmit = async function(e) {
     const playersB = selectedPlayersB.map(p => p.id);
     const start_time = document.getElementById('match-start-time').value;
     const starting_hole = parseInt(document.getElementById('match-starting-hole').value) || 1;
+    const round = parseInt(document.getElementById('match-round').value) || 0;
     const id = document.getElementById('match-id').value;
     const url = id ? '/api/match/edit' : '/api/match/add';
-    const payload = { format, holes, team_a: teamA, team_b: teamB, players_a: playersA, players_b: playersB, start_time, starting_hole };
+    const payload = { format, holes, team_a: teamA, team_b: teamB, players_a: playersA, players_b: playersB, start_time, starting_hole, round };
     if (id) payload.id = parseInt(id);
     await fetch(url, {
         method: 'POST',
@@ -657,7 +660,8 @@ document.getElementById('match-form').onsubmit = async function(e) {
             team_a: teamA, team_b: teamB,
             players_a: playersA, players_b: playersB,
             start_time: addTwoHours(start_time),
-            starting_hole: foursomeHole
+            starting_hole: foursomeHole,
+            round
         };
         await fetch('/api/match/add', {
             method: 'POST',
@@ -688,23 +692,42 @@ window.showTab = function(tabId) {
 };
 
 // --- Visibility ---
-const VISIBILITY_FORMATS = [
-    { key: 'visibility_singles', label: 'Singles' },
-    { key: 'visibility_foursome', label: 'Foursome' },
-    { key: 'visibility_texas_scramble', label: 'Texas Scramble' },
+const MATCH_FORMATS = [
+    { format: 'singles', label: 'Singles' },
+    { format: 'foursome', label: 'Foursome' },
+    { format: 'texas_scramble', label: 'Texas Scramble' },
 ];
+
+let visibilityRoundFilter = 'all';
+let lockRoundFilter = 'all';
+
+function getAvailableRounds() {
+    return [...new Set(allMatches.map(m => m.round ?? 0))].sort((a, b) => a - b);
+}
+
+function renderRoundSelectorFor(containerId, currentVal, onClickFn) {
+    const rounds = getAvailableRounds();
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (rounds.length <= 1) { el.innerHTML = ''; return; }
+    el.innerHTML = `<button class="filter-btn${currentVal === 'all' ? ' active' : ''}" onclick="${onClickFn}('all')">Všechna kola</button>` +
+        rounds.map(r => `<button class="filter-btn${currentVal === r ? ' active' : ''}" onclick="${onClickFn}(${r})">${r}. Kolo</button>`).join('');
+}
 
 async function fetchAndRenderVisibility() {
     const res = await fetch('/api/settings');
     const settings = res.ok ? await res.json() : {};
+    renderRoundSelectorFor('visibility-round-selector', visibilityRoundFilter, 'setVisibilityRound');
     const container = document.getElementById('visibility-checkboxes');
     container.innerHTML = '';
-    VISIBILITY_FORMATS.forEach(({ key, label }) => {
-        const visible = settings[key] !== 'false';
-        const id = `vis-${key}`;
+    MATCH_FORMATS.forEach(({ format, label }) => {
+        const globalKey = `visibility_${format}`;
+        const key = visibilityRoundFilter === 'all' ? globalKey : `visibility_round_${visibilityRoundFilter}_${format}`;
+        const globalVal = settings[globalKey] !== 'false';
+        const val = visibilityRoundFilter === 'all' ? globalVal : (settings[key] !== undefined ? settings[key] !== 'false' : globalVal);
         const row = document.createElement('label');
         row.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:1rem;cursor:pointer;';
-        row.innerHTML = `<input type="checkbox" id="${id}" style="width:auto;margin:0;" ${visible ? 'checked' : ''}> ${label}`;
+        row.innerHTML = `<input type="checkbox" style="width:auto;margin:0;" ${val ? 'checked' : ''}> ${label}`;
         row.querySelector('input').addEventListener('change', async function() {
             await fetch('/api/settings', {
                 method: 'POST',
@@ -716,24 +739,26 @@ async function fetchAndRenderVisibility() {
     });
 }
 
-// --- Lock Results ---
-const LOCK_FORMATS = [
-    { key: 'lock_singles', label: 'Singles' },
-    { key: 'lock_foursome', label: 'Foursome' },
-    { key: 'lock_texas_scramble', label: 'Texas Scramble' },
-];
+window.setVisibilityRound = function(r) {
+    visibilityRoundFilter = r;
+    fetchAndRenderVisibility();
+};
 
+// --- Lock Results ---
 async function fetchAndRenderLock() {
     const res = await fetch('/api/settings');
     const settings = res.ok ? await res.json() : {};
+    renderRoundSelectorFor('lock-round-selector', lockRoundFilter, 'setLockRound');
     const container = document.getElementById('lock-checkboxes');
     container.innerHTML = '';
-    LOCK_FORMATS.forEach(({ key, label }) => {
-        const locked = settings[key] === 'true';
-        const id = `lock-${key}`;
+    MATCH_FORMATS.forEach(({ format, label }) => {
+        const globalKey = `lock_${format}`;
+        const key = lockRoundFilter === 'all' ? globalKey : `lock_round_${lockRoundFilter}_${format}`;
+        const globalVal = settings[globalKey] === 'true';
+        const val = lockRoundFilter === 'all' ? globalVal : (settings[key] !== undefined ? settings[key] === 'true' : globalVal);
         const row = document.createElement('label');
         row.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:1rem;cursor:pointer;';
-        row.innerHTML = `<input type="checkbox" id="${id}" style="width:auto;margin:0;" ${locked ? 'checked' : ''}> ${label}`;
+        row.innerHTML = `<input type="checkbox" style="width:auto;margin:0;" ${val ? 'checked' : ''}> ${label}`;
         row.querySelector('input').addEventListener('change', async function() {
             await fetch('/api/settings', {
                 method: 'POST',
@@ -744,12 +769,17 @@ async function fetchAndRenderLock() {
         container.appendChild(row);
     });
 }
+
+window.setLockRound = function(r) {
+    lockRoundFilter = r;
+    fetchAndRenderLock();
+};
 
 window.onload = async function() {
     await loadAllPlayers();
     fetchPlayers();
     fetchTeams();
-    fetchMatches();
+    await fetchMatches();
     populateMatchForm();
     populatePlayerTeamSelect();
     renderTemplateBar();

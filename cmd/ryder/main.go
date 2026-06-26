@@ -86,6 +86,8 @@ func autoMigrate(db *sql.DB) {
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN holes TEXT DEFAULT '18';")
 	// Add starting_hole column if not exists
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN starting_hole INTEGER DEFAULT 1;")
+	// Add round column if not exists
+	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN round INTEGER DEFAULT 0;")
 }
 
 func main() {

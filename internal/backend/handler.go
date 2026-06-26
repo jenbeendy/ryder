@@ -119,6 +119,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		Status       string `json:"status"`
 		StartTime    string `json:"start_time"`
 		StartingHole int    `json:"starting_hole"`
+		Round        int    `json:"round"`
 		TeamA        struct {
 			ID      int           `json:"id"`
 			Name    string        `json:"name"`
@@ -132,7 +133,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 			Players []MatchPlayer `json:"players"`
 		} `json:"team_b"`
 	}
-	rows, err := DB.Query(`SELECT m.id, m.format, m.holes, m.status, m.start_time, m.starting_hole, ta.id, ta.name, ta.color, tb.id, tb.name, tb.color FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id ORDER BY m.start_time`)
+	rows, err := DB.Query(`SELECT m.id, m.format, m.holes, m.status, m.start_time, m.starting_hole, m.round, ta.id, ta.name, ta.color, tb.id, tb.name, tb.color FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id ORDER BY m.start_time`)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -145,7 +146,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		var taName, tbName string
 		var tbColor, taColor string
 		var startTime string
-		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &startTime, &m.StartingHole, &taID, &taName, &taColor, &tbID, &tbName, &tbColor); err != nil {
+		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &startTime, &m.StartingHole, &m.Round, &taID, &taName, &taColor, &tbID, &tbName, &tbColor); err != nil {
 			continue
 		}
 		m.TeamA.ID, m.TeamA.Name, m.TeamA.Color = taID, taName, taColor
@@ -372,6 +373,7 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 		PlayersB     []int  `json:"players_b"`
 		StartTime    string `json:"start_time"`
 		StartingHole int    `json:"starting_hole"`
+		Round        int    `json:"round"`
 	}
 	var body req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -388,7 +390,7 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 
 	time.Sleep(time.Duration(randInt(10, 100)) * time.Millisecond)
 
-	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole) VALUES (?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime, body.StartingHole)
+	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole, round) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime, body.StartingHole, body.Round)
 	if err != nil {
 		log.Printf("AddMatch error: %v | payload: %+v", err, body)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -415,6 +417,7 @@ func EditMatch(w http.ResponseWriter, r *http.Request) {
 		PlayersB     []int  `json:"players_b"`
 		StartTime    string `json:"start_time"`
 		StartingHole int    `json:"starting_hole"`
+		Round        int    `json:"round"`
 	}
 	var body req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -425,8 +428,8 @@ func EditMatch(w http.ResponseWriter, r *http.Request) {
 		body.StartingHole = 1
 	}
 	// Update match details
-	_, err := DB.Exec(`UPDATE matches SET format=?, holes=?, team_a_id=?, team_b_id=?, start_time=?, starting_hole=? WHERE id=?`,
-		body.Format, body.Holes, body.TeamA, body.TeamB, body.StartTime, body.StartingHole, body.ID)
+	_, err := DB.Exec(`UPDATE matches SET format=?, holes=?, team_a_id=?, team_b_id=?, start_time=?, starting_hole=?, round=? WHERE id=?`,
+		body.Format, body.Holes, body.TeamA, body.TeamB, body.StartTime, body.StartingHole, body.Round, body.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -540,16 +543,18 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		teamNames[id] = name
 	}
 	// 2. Get all finished matches and accumulate scores
-	matchRows, _ := DB.Query("SELECT id, team_a_id, team_b_id, status, start_time, starting_hole FROM matches ORDER BY start_time")
+	matchRows, _ := DB.Query("SELECT id, team_a_id, team_b_id, status, start_time, starting_hole, round FROM matches ORDER BY start_time")
 	defer matchRows.Close()
 	matches := []map[string]interface{}{}
+	roundSet := map[int]bool{}
 	for matchRows.Next() {
 		var id, ta, tb int
 		var status string
 		var startTime string
-		var startingHole int
-		matchRows.Scan(&id, &ta, &tb, &status, &startTime, &startingHole)
-		m := map[string]interface{}{"id": id, "team_a_id": ta, "team_b_id": tb, "status": status, "team_a_name": teamNames[ta], "team_b_name": teamNames[tb], "start_time": startTime, "starting_hole": startingHole}
+		var startingHole, round int
+		matchRows.Scan(&id, &ta, &tb, &status, &startTime, &startingHole, &round)
+		roundSet[round] = true
+		m := map[string]interface{}{"id": id, "team_a_id": ta, "team_b_id": tb, "status": status, "team_a_name": teamNames[ta], "team_b_name": teamNames[tb], "start_time": startTime, "starting_hole": startingHole, "round": round}
 		// Add player names and HCPs for each team
 		paRows, err := DB.Query(`SELECT p.name, p.hcp FROM match_players mp JOIN players p ON mp.player_id=p.id WHERE mp.match_id=? AND mp.team_side='A'`, id)
 		if err != nil {
@@ -669,10 +674,23 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		grouped[status] = append(grouped[status], m)
 	}
+	availableRounds := []int{}
+	for r := range roundSet {
+		availableRounds = append(availableRounds, r)
+	}
+	// sort ascending
+	for i := 0; i < len(availableRounds); i++ {
+		for j := i + 1; j < len(availableRounds); j++ {
+			if availableRounds[j] < availableRounds[i] {
+				availableRounds[i], availableRounds[j] = availableRounds[j], availableRounds[i]
+			}
+		}
+	}
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"teams":           teams,
-		"matches":         grouped,
-		"projectedScores": projectedScores,
+		"teams":            teams,
+		"matches":          grouped,
+		"projectedScores":  projectedScores,
+		"available_rounds": availableRounds,
 	})
 }
 

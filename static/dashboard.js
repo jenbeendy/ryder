@@ -2,6 +2,8 @@ let ws = null;
 let wsConnected = false;
 let pingInterval = null;
 let pongTimeout = null;
+let selectedRound = null;
+let lastDashboardData = null;
 
 // Periodically check WebSocket connection and reconnect if needed
 
@@ -15,9 +17,39 @@ async function fetchDashboard() {
     ]);
     const data = await dashRes.json();
     const settings = settingsRes.ok ? await settingsRes.json() : {};
+    lastDashboardData = { data, settings };
+    const availableRounds = data.available_rounds || [];
+    if (availableRounds.length > 0) {
+        const maxRound = availableRounds[availableRounds.length - 1];
+        if (selectedRound === null || !availableRounds.includes(selectedRound)) {
+            selectedRound = maxRound;
+        }
+    }
+    renderRoundSelector(availableRounds);
     renderTeams(data.teams || [], data.projectedScores || {});
     renderMatches(data.matches || {}, settings);
 }
+
+function renderRoundSelector(availableRounds) {
+    const div = document.getElementById('round-selector');
+    if (!div) return;
+    if (availableRounds.length <= 1) {
+        div.innerHTML = '';
+        return;
+    }
+    div.innerHTML = availableRounds.map(r =>
+        `<button onclick="selectRound(${r})" style="padding:0.3rem 0.9rem;border-radius:8px;border:2px solid #1741a6;background:${r === selectedRound ? '#1741a6' : '#fff'};color:${r === selectedRound ? '#fff' : '#1741a6'};font-weight:600;cursor:pointer;">${r + 1}. Kolo</button>`
+    ).join('');
+}
+
+window.selectRound = function(r) {
+    selectedRound = r;
+    if (lastDashboardData) {
+        renderRoundSelector(lastDashboardData.data.available_rounds || []);
+        renderTeams(lastDashboardData.data.teams || [], lastDashboardData.data.projectedScores || {});
+        renderMatches(lastDashboardData.data.matches || {}, lastDashboardData.settings);
+    }
+};
 
 function renderTeams(teams, projectedScores) {
     const div = document.getElementById('teams');
@@ -44,8 +76,17 @@ function renderTeams(teams, projectedScores) {
 }
 
 function renderMatches(grouped, settings) {
+    function isVisible(m) {
+        const roundKey = `visibility_round_${m.round}_${m.format}`;
+        const globalKey = `visibility_${m.format}`;
+        const effective = settings[roundKey] !== undefined ? settings[roundKey] : settings[globalKey];
+        return effective !== 'false';
+    }
     function visibleFilter(matches) {
-        return (matches || []).filter(m => settings['visibility_' + m.format] !== 'false');
+        return (matches || []).filter(m =>
+            isVisible(m) &&
+            (selectedRound === null || m.round === selectedRound)
+        );
     }
     renderMatchGroup('matches-completed', visibleFilter(grouped.completed), 'Completed');
     renderMatchGroup('matches-running', visibleFilter(grouped.running), 'Running');
