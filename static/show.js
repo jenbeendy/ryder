@@ -55,6 +55,29 @@ function renderShowTeamscore(teams, projectedScores) {
     }
 }
 
+const _scrollIntervals = {};
+const _scrollPos = {};
+const _scrollDir = {};
+
+function startAutoScroll(id) {
+    if (_scrollIntervals[id]) clearInterval(_scrollIntervals[id]);
+    const ul = document.getElementById(id);
+    if (!ul || ul.parentElement.style.display === 'none') return;
+    if (ul.scrollHeight <= ul.clientHeight) return;
+    if (_scrollPos[id] === undefined) _scrollPos[id] = 0;
+    if (_scrollDir[id] === undefined) _scrollDir[id] = 1;
+    _scrollIntervals[id] = setInterval(() => {
+        const el = document.getElementById(id);
+        if (!el) { clearInterval(_scrollIntervals[id]); return; }
+        const maxScroll = el.scrollHeight - el.clientHeight;
+        if (maxScroll <= 0) return;
+        _scrollPos[id] += _scrollDir[id] * 0.5;
+        if (_scrollPos[id] >= maxScroll) { _scrollPos[id] = maxScroll; _scrollDir[id] = -1; }
+        if (_scrollPos[id] <= 0) { _scrollPos[id] = 0; _scrollDir[id] = 1; }
+        el.scrollTop = Math.round(_scrollPos[id]);
+    }, 40);
+}
+
 function renderShowMatches(grouped, settings, latestRound) {
     function isVisible(m) {
         const roundKey = `visibility_round_${m.round}_${m.format}`;
@@ -90,37 +113,7 @@ function renderShowMatches(grouped, settings, latestRound) {
 
     setTimeout(() => {
         ["matches-prepared", "matches-running", "matches-completed"].forEach(id => {
-            const ul = document.getElementById(id);
-            if (!ul || ul.parentElement.style.display === 'none') return;
-            ul.replaceWith(ul.cloneNode(true));
-            const newUl = document.getElementById(id);
-            if (newUl.scrollHeight <= newUl.clientHeight) return;
-            let scrollDir = 1;
-            let scrollStep = 0.5;
-            let scrollInterval = null;
-            let lastScrollTop = null;
-            let stillTimer = null;
-            function startScroll() {
-                if (newUl.scrollHeight <= newUl.clientHeight) return;
-                if (scrollInterval) clearInterval(scrollInterval);
-                scrollInterval = setInterval(() => {
-                    newUl.scrollTop += scrollDir * scrollStep;
-                    const maxScroll = newUl.scrollHeight - newUl.clientHeight;
-                    if (newUl.scrollTop >= maxScroll) { newUl.scrollTop = maxScroll; scrollDir = -1; }
-                    if (newUl.scrollTop <= 0) { newUl.scrollTop = 0; scrollDir = 1; }
-                    if (lastScrollTop === newUl.scrollTop) {
-                        if (!stillTimer) stillTimer = setTimeout(() => { scrollDir *= -1; stillTimer = null; }, 2000);
-                    } else {
-                        if (stillTimer) { clearTimeout(stillTimer); stillTimer = null; }
-                    }
-                    lastScrollTop = newUl.scrollTop;
-                }, 40);
-            }
-            function stopScroll() { if (scrollInterval) clearInterval(scrollInterval); }
-            newUl.addEventListener('mouseenter', stopScroll);
-            newUl.addEventListener('mouseleave', startScroll);
-            startScroll();
-            window.addEventListener('resize', () => { stopScroll(); newUl.scrollTop = 0; scrollDir = 1; startScroll(); });
+            startAutoScroll(id);
         });
     }, 0);
 }
@@ -179,6 +172,14 @@ function showMatchRow(m) {
         ${startTimeHtml}
     </span></li>`;
 }
+
+window.addEventListener('resize', () => {
+    ["matches-prepared", "matches-running", "matches-completed"].forEach(id => {
+        _scrollPos[id] = 0;
+        _scrollDir[id] = 1;
+        startAutoScroll(id);
+    });
+});
 
 window.onload = function() {
     fetchShow();
