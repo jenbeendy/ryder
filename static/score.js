@@ -378,8 +378,12 @@ async function isFormatLocked(format) {
     const res = await fetch('/api/settings');
     if (!res.ok) return false;
     const settings = await res.json();
-    const key = 'lock_' + format;
-    return settings[key] === 'true';
+    const round = currentMatch ? currentMatch.round : null;
+    if (round != null) {
+        const roundKey = `lock_round_${round}_${format}`;
+        if (settings[roundKey] !== undefined) return settings[roundKey] === 'true';
+    }
+    return settings['lock_' + format] === 'true';
 }
 
 async function updateFinishButton() {

@@ -947,8 +947,8 @@ const MATCH_FORMATS = [
     { format: 'texas_scramble', label: 'Texas Scramble' },
 ];
 
-let visibilityRoundFilter = 'all';
-let lockRoundFilter = 'all';
+let visibilityRoundFilter = null;
+let lockRoundFilter = null;
 
 function getAvailableRounds() {
     return [...new Set(allMatches.map(m => m.round ?? 0))].sort((a, b) => a - b);
@@ -959,21 +959,23 @@ function renderRoundSelectorFor(containerId, currentVal, onClickFn) {
     const el = document.getElementById(containerId);
     if (!el) return;
     if (rounds.length <= 1) { el.innerHTML = ''; return; }
-    el.innerHTML = `<button class="filter-btn${currentVal === 'all' ? ' active' : ''}" onclick="${onClickFn}('all')">Všechna kola</button>` +
-        rounds.map(r => `<button class="filter-btn${currentVal === r ? ' active' : ''}" onclick="${onClickFn}(${r})">${r}. Kolo</button>`).join('');
+    el.innerHTML = rounds.map(r =>
+        `<button class="filter-btn${currentVal === r ? ' active' : ''}" onclick="${onClickFn}(${r})">${r}. Kolo</button>`
+    ).join('');
 }
 
 async function fetchAndRenderVisibility() {
     const res = await fetch('/api/settings');
     const settings = res.ok ? await res.json() : {};
+    const rounds = getAvailableRounds();
+    if (visibilityRoundFilter === null && rounds.length > 0) visibilityRoundFilter = rounds[0];
     renderRoundSelectorFor('visibility-round-selector', visibilityRoundFilter, 'setVisibilityRound');
     const container = document.getElementById('visibility-checkboxes');
     container.innerHTML = '';
+    if (visibilityRoundFilter === null) return;
     MATCH_FORMATS.forEach(({ format, label }) => {
-        const globalKey = `visibility_${format}`;
-        const key = visibilityRoundFilter === 'all' ? globalKey : `visibility_round_${visibilityRoundFilter}_${format}`;
-        const globalVal = settings[globalKey] !== 'false';
-        const val = visibilityRoundFilter === 'all' ? globalVal : (settings[key] !== undefined ? settings[key] !== 'false' : globalVal);
+        const key = `visibility_round_${visibilityRoundFilter}_${format}`;
+        const val = settings[key] !== undefined ? settings[key] !== 'false' : true;
         const row = document.createElement('label');
         row.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:1rem;cursor:pointer;';
         row.innerHTML = `<input type="checkbox" style="width:auto;margin:0;" ${val ? 'checked' : ''}> ${label}`;
@@ -997,14 +999,15 @@ window.setVisibilityRound = function(r) {
 async function fetchAndRenderLock() {
     const res = await fetch('/api/settings');
     const settings = res.ok ? await res.json() : {};
+    const rounds = getAvailableRounds();
+    if (lockRoundFilter === null && rounds.length > 0) lockRoundFilter = rounds[0];
     renderRoundSelectorFor('lock-round-selector', lockRoundFilter, 'setLockRound');
     const container = document.getElementById('lock-checkboxes');
     container.innerHTML = '';
+    if (lockRoundFilter === null) return;
     MATCH_FORMATS.forEach(({ format, label }) => {
-        const globalKey = `lock_${format}`;
-        const key = lockRoundFilter === 'all' ? globalKey : `lock_round_${lockRoundFilter}_${format}`;
-        const globalVal = settings[globalKey] === 'true';
-        const val = lockRoundFilter === 'all' ? globalVal : (settings[key] !== undefined ? settings[key] === 'true' : globalVal);
+        const key = `lock_round_${lockRoundFilter}_${format}`;
+        const val = settings[key] === 'true';
         const row = document.createElement('label');
         row.style.cssText = 'display:flex;align-items:center;gap:10px;font-size:1rem;cursor:pointer;';
         row.innerHTML = `<input type="checkbox" style="width:auto;margin:0;" ${val ? 'checked' : ''}> ${label}`;
