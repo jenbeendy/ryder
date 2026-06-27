@@ -159,7 +159,8 @@ function showMatchRow(m) {
     }
     let startTimeHtml = '';
     if (m.status === 'prepared' && m.start_time) {
-        startTimeHtml = `<span class='match-start-time' style="display:block;font-size:1.1em;color:#2563eb;font-weight:600;min-width:100px;text-align:right;">${m.start_time}</span>`;
+        const holeLabel = m.starting_hole ? ` · ${m.starting_hole}` : '';
+        startTimeHtml = `<span class='match-start-time' style="display:block;font-size:1.1em;color:#2563eb;font-weight:600;min-width:100px;text-align:right;">${m.start_time}${holeLabel}</span>`;
     } else {
         startTimeHtml = `<span class='match-score'>${scoreHtml}</span>`;
     }
