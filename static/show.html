@@ -62,18 +62,18 @@
         .matches-section h2 {
             color: #1741a6;
             margin-bottom: 0.7rem;
-            font-size: 1.3rem;
+            font-size: 1.0rem;
         }
         ul { list-style: none; padding: 0; }
         li {
             background: #f8fafc;
-            border-radius: 18px;
-            padding: 0.9rem 1.3rem;
-            margin-bottom: 1.1rem;
+            border-radius: 14px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.6rem;
             box-shadow: 0 2px 8px rgba(37,99,235,0.09);
             border: 2px solid #e0e7ef;
             transition: box-shadow 0.15s, border 0.15s;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -118,7 +118,7 @@
             color: #1741a6;
             text-decoration: none;
             cursor: default;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             font-weight: 500;
             display: flex;
             align-items: center;
@@ -128,8 +128,8 @@
         .match-format {
             font-weight: bold;
             color: #2563eb;
-            font-size: 1.1rem;
-            flex: 0 0 110px;
+            font-size: 0.95rem;
+            flex: 0 0 90px;
             text-align: left;
         }
         .match-players {
@@ -147,23 +147,23 @@
             white-space: pre-line;
         }
         .match-score {
-            flex: 0 0 110px;
+            flex: 0 0 90px;
             text-align: right;
             color: #1741a6;
             font-weight: 700;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
             justify-content: center;
         }
         .score-team {
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             font-weight: 700;
             color: #1741a6;
         }
         .score-value {
-            font-size: 1.1rem;
+            font-size: 0.95rem;
             font-weight: 500;
             color: #2563eb;
         }
@@ -213,15 +213,13 @@
 </head>
 <body>
     <div class="container">
-        <div style="display:flex;justify-content:center;align-items:center;gap:2rem;margin-bottom:1.2em;">
-            <img src="/img/slapy.png" alt="Golf Park Slapy Logo" style="height:91px;width:91px;object-fit:contain;" />
-            <span style="font-size:1.5rem;font-weight:700;color:#565656;">vs</span>
-            <img src="/img/certovo_bremeno.png" alt="Bremeno Logo" style="height:91px;width:91px;object-fit:contain;" />
-        </div>
-        <h1 style="text-align:center;margin-top:0;margin-bottom:0.5em;color:#565656;font-size:2.1rem;">Ryder Cup 2026</h1>
-        <div style="display: flex; align-items: center; justify-content: center; gap: 2.5em; margin-bottom: 1.5rem;">
+        <h1 style="text-align:center;margin-top:0;margin-bottom:0.5em;color:#565656;font-size:1.6rem;">Ryder Cup 2026</h1>
+        <div style="display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-bottom:0.5rem;">
+            <img src="/img/slapy.png" alt="Golf Park Slapy Logo" style="height:72px;width:72px;object-fit:contain;" />
             <div id="show-teamscore-left" class="show-teamscore"></div>
+            <span style="font-size:1.5rem;font-weight:700;color:#565656;">vs</span>
             <div id="show-teamscore-right" class="show-teamscore"></div>
+            <img src="/img/certovo_bremeno.png" alt="Bremeno Logo" style="height:72px;width:72px;object-fit:contain;" />
         </div>
         <div class="matches-grid">
             <div class="matches-section">
