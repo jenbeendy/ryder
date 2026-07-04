@@ -4,10 +4,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	"image/png"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
+
+	xdraw "golang.org/x/image/draw"
 )
 
 type Player struct {
@@ -23,7 +29,22 @@ type Team struct {
 	ID      int      `json:"id"`
 	Name    string   `json:"name"`
 	Color   string   `json:"color"`
+	Logo    string   `json:"logo"`
 	Players []Player `json:"players,omitempty"`
+}
+
+type SessionRound struct {
+	RoundNumber int    `json:"round_number"`
+	Date        string `json:"date"`
+}
+
+type Session struct {
+	ID       int            `json:"id"`
+	Title    string         `json:"title"`
+	TeamAID  int            `json:"team_a_id"`
+	TeamBID  int            `json:"team_b_id"`
+	IsActive bool           `json:"is_active"`
+	Rounds   []SessionRound `json:"rounds"`
 }
 
 type MatchFormat string
@@ -124,16 +145,26 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 			ID      int           `json:"id"`
 			Name    string        `json:"name"`
 			Color   string        `json:"color"`
+			Logo    string        `json:"logo"`
 			Players []MatchPlayer `json:"players"`
 		} `json:"team_a"`
 		TeamB struct {
 			ID      int           `json:"id"`
 			Name    string        `json:"name"`
 			Color   string        `json:"color"`
+			Logo    string        `json:"logo"`
 			Players []MatchPlayer `json:"players"`
 		} `json:"team_b"`
 	}
-	rows, err := DB.Query(`SELECT m.id, m.format, m.holes, m.status, m.start_time, m.starting_hole, m.round, ta.id, ta.name, ta.color, tb.id, tb.name, tb.color FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id ORDER BY m.start_time`)
+	// When a session is active, list only its matches
+	query := `SELECT m.id, m.format, m.holes, m.status, m.start_time, m.starting_hole, m.round, ta.id, ta.name, ta.color, COALESCE(ta.logo, ''), tb.id, tb.name, tb.color, COALESCE(tb.logo, '') FROM matches m JOIN teams ta ON m.team_a_id=ta.id JOIN teams tb ON m.team_b_id=tb.id`
+	args := []interface{}{}
+	if sid, _, _, _, ok := getActiveSession(); ok {
+		query += " WHERE m.session_id=?"
+		args = append(args, sid)
+	}
+	query += " ORDER BY m.start_time"
+	rows, err := DB.Query(query, args...)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -145,12 +176,13 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 		var taID, tbID int
 		var taName, tbName string
 		var tbColor, taColor string
+		var taLogo, tbLogo string
 		var startTime string
-		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &startTime, &m.StartingHole, &m.Round, &taID, &taName, &taColor, &tbID, &tbName, &tbColor); err != nil {
+		if err := rows.Scan(&m.ID, &m.Format, &m.Holes, &m.Status, &startTime, &m.StartingHole, &m.Round, &taID, &taName, &taColor, &taLogo, &tbID, &tbName, &tbColor, &tbLogo); err != nil {
 			continue
 		}
-		m.TeamA.ID, m.TeamA.Name, m.TeamA.Color = taID, taName, taColor
-		m.TeamB.ID, m.TeamB.Name, m.TeamB.Color = tbID, tbName, tbColor
+		m.TeamA.ID, m.TeamA.Name, m.TeamA.Color, m.TeamA.Logo = taID, taName, taColor, taLogo
+		m.TeamB.ID, m.TeamB.Name, m.TeamB.Color, m.TeamB.Logo = tbID, tbName, tbColor, tbLogo
 		m.StartTime = startTime
 		// Fetch players for each team in this match
 		paRows, _ := DB.Query(`SELECT p.id, p.name, p.hcp FROM match_players mp JOIN players p ON mp.player_id=p.id WHERE mp.match_id=? AND mp.team_side='A'`, m.ID)
@@ -218,7 +250,7 @@ func ListPlayers(w http.ResponseWriter, r *http.Request) {
 
 // --- Team List Handler ---
 func ListTeams(w http.ResponseWriter, r *http.Request) {
-	rows, err := DB.Query("SELECT id, name, color FROM teams ORDER BY name")
+	rows, err := DB.Query("SELECT id, name, color, COALESCE(logo, '') FROM teams ORDER BY name")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -231,7 +263,7 @@ func ListTeams(w http.ResponseWriter, r *http.Request) {
 	var teams []Team
 	for rows.Next() {
 		var t Team
-		if err := rows.Scan(&t.ID, &t.Name, &t.Color); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.Color, &t.Logo); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -344,6 +376,95 @@ func AddTeam(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UploadTeamLogo accepts a multipart form (team_id, logo file), validates the image
+// (max 2 MB, PNG/JPEG, roughly square, min 91px), downsizes anything larger than
+// 512px and stores it as img/team_<id>.png with the path saved on the team row.
+func UploadTeamLogo(w http.ResponseWriter, r *http.Request) {
+	const maxLogoBytes = 2 << 20 // 2 MB
+	const maxLogoDim = 512
+	const minLogoDim = 91
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxLogoBytes+64*1024)
+	if err := r.ParseMultipartForm(maxLogoBytes); err != nil {
+		http.Error(w, "file too large (max 2 MB)", http.StatusBadRequest)
+		return
+	}
+	teamID, err := strconv.Atoi(r.FormValue("team_id"))
+	if err != nil || teamID <= 0 {
+		http.Error(w, "invalid team_id", http.StatusBadRequest)
+		return
+	}
+	var exists int
+	if err := DB.QueryRow("SELECT COUNT(*) FROM teams WHERE id=?", teamID).Scan(&exists); err != nil || exists == 0 {
+		http.Error(w, "team not found", http.StatusNotFound)
+		return
+	}
+	file, header, err := r.FormFile("logo")
+	if err != nil {
+		http.Error(w, "missing logo file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	if header.Size > maxLogoBytes {
+		http.Error(w, "file too large (max 2 MB)", http.StatusBadRequest)
+		return
+	}
+	img, format, err := image.Decode(file)
+	if err != nil {
+		http.Error(w, "invalid image: must be PNG or JPEG", http.StatusBadRequest)
+		return
+	}
+	if format != "png" && format != "jpeg" {
+		http.Error(w, "unsupported format: must be PNG or JPEG", http.StatusBadRequest)
+		return
+	}
+	b := img.Bounds()
+	width, height := b.Dx(), b.Dy()
+	if width < minLogoDim || height < minLogoDim {
+		http.Error(w, fmt.Sprintf("image too small: minimum %dx%d px", minLogoDim, minLogoDim), http.StatusBadRequest)
+		return
+	}
+	larger := width
+	if height > larger {
+		larger = height
+	}
+	if float64(abs(width-height)) > 0.1*float64(larger) {
+		http.Error(w, "image must be square (within 10% tolerance)", http.StatusBadRequest)
+		return
+	}
+	// Downscale to fit maxLogoDim while keeping aspect ratio
+	if larger > maxLogoDim {
+		scale := float64(maxLogoDim) / float64(larger)
+		dst := image.NewRGBA(image.Rect(0, 0, int(float64(width)*scale), int(float64(height)*scale)))
+		xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, b, xdraw.Over, nil)
+		img = dst
+	}
+	logoPath := fmt.Sprintf("img/team_%d.png", teamID)
+	out, err := os.Create(logoPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer out.Close()
+	if err := png.Encode(out, img); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	logoURL := "/" + logoPath
+	if _, err := DB.Exec("UPDATE teams SET logo=? WHERE id=?", logoURL, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"logo": logoURL})
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 func AssignPlayerToTeam(w http.ResponseWriter, r *http.Request) {
 	type req struct {
 		PlayerID int `json:"player_id"`
@@ -360,6 +481,202 @@ func AssignPlayerToTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Session Handlers ---
+
+// getActiveSession returns the active session, or ok=false when none is active.
+func getActiveSession() (id int, title string, teamA int, teamB int, ok bool) {
+	err := DB.QueryRow("SELECT id, title, team_a_id, team_b_id FROM sessions WHERE is_active=1 LIMIT 1").Scan(&id, &title, &teamA, &teamB)
+	if err != nil {
+		return 0, "", 0, 0, false
+	}
+	return id, title, teamA, teamB, true
+}
+
+func loadSessionRounds(sessionID int) []SessionRound {
+	rounds := []SessionRound{}
+	rows, err := DB.Query("SELECT round_number, date FROM session_rounds WHERE session_id=? ORDER BY round_number", sessionID)
+	if err != nil {
+		return rounds
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var sr SessionRound
+		var date sql.NullString
+		if err := rows.Scan(&sr.RoundNumber, &date); err == nil {
+			sr.Date = date.String
+			rounds = append(rounds, sr)
+		}
+	}
+	return rounds
+}
+
+func ListSessions(w http.ResponseWriter, r *http.Request) {
+	rows, err := DB.Query(`SELECT s.id, s.title, s.team_a_id, s.team_b_id, s.is_active,
+		COALESCE(ta.name, ''), COALESCE(tb.name, '')
+		FROM sessions s
+		LEFT JOIN teams ta ON s.team_a_id = ta.id
+		LEFT JOIN teams tb ON s.team_b_id = tb.id
+		ORDER BY s.id`)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+	type sessionOut struct {
+		Session
+		TeamAName string `json:"team_a_name"`
+		TeamBName string `json:"team_b_name"`
+	}
+	sessions := []sessionOut{}
+	for rows.Next() {
+		var s sessionOut
+		var active int
+		if err := rows.Scan(&s.ID, &s.Title, &s.TeamAID, &s.TeamBID, &active, &s.TeamAName, &s.TeamBName); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		s.IsActive = active == 1
+		sessions = append(sessions, s)
+	}
+	for i := range sessions {
+		sessions[i].Rounds = loadSessionRounds(sessions[i].ID)
+	}
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{"sessions": sessions}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func validateSession(s *Session) string {
+	if s.Title == "" {
+		return "title is required"
+	}
+	if s.TeamAID == 0 || s.TeamBID == 0 {
+		return "both teams are required"
+	}
+	if s.TeamAID == s.TeamBID {
+		return "team A and team B must be different"
+	}
+	return ""
+}
+
+func AddSession(w http.ResponseWriter, r *http.Request) {
+	var s Session
+	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if msg := validateSession(&s); msg != "" {
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+	res, err := DB.Exec("INSERT INTO sessions (title, team_a_id, team_b_id, is_active) VALUES (?, ?, ?, 0)", s.Title, s.TeamAID, s.TeamBID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	id, _ := res.LastInsertId()
+	s.ID = int(id)
+	for _, sr := range s.Rounds {
+		_, _ = DB.Exec("INSERT OR REPLACE INTO session_rounds (session_id, round_number, date) VALUES (?, ?, ?)", s.ID, sr.RoundNumber, sr.Date)
+	}
+	if s.IsActive {
+		_ = activateSession(s.ID)
+	}
+	if err := json.NewEncoder(w).Encode(s); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func EditSession(w http.ResponseWriter, r *http.Request) {
+	var s Session
+	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if msg := validateSession(&s); msg != "" {
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+	_, err := DB.Exec("UPDATE sessions SET title=?, team_a_id=?, team_b_id=? WHERE id=?", s.Title, s.TeamAID, s.TeamBID, s.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_, _ = DB.Exec("DELETE FROM session_rounds WHERE session_id=?", s.ID)
+	for _, sr := range s.Rounds {
+		_, _ = DB.Exec("INSERT OR REPLACE INTO session_rounds (session_id, round_number, date) VALUES (?, ?, ?)", s.ID, sr.RoundNumber, sr.Date)
+	}
+	if err := json.NewEncoder(w).Encode(s); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func RemoveSession(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid session id", http.StatusBadRequest)
+		return
+	}
+	var cnt int
+	if err := DB.QueryRow("SELECT COUNT(*) FROM matches WHERE session_id=?", id).Scan(&cnt); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if cnt > 0 {
+		http.Error(w, "session has matches; remove them first", http.StatusConflict)
+		return
+	}
+	if _, err := DB.Exec("DELETE FROM sessions WHERE id=?", id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_, _ = DB.Exec("DELETE FROM session_rounds WHERE session_id=?", id)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// activateSession makes the given session the only active one; id 0 clears the active flag.
+func activateSession(id int) error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec("UPDATE sessions SET is_active=0"); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if id != 0 {
+		if _, err := tx.Exec("UPDATE sessions SET is_active=1 WHERE id=?", id); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func SetActiveSession(w http.ResponseWriter, r *http.Request) {
+	type req struct {
+		ID int `json:"id"`
+	}
+	var body req
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if body.ID != 0 {
+		var exists int
+		if err := DB.QueryRow("SELECT COUNT(*) FROM sessions WHERE id=?", body.ID).Scan(&exists); err != nil || exists == 0 {
+			http.Error(w, "session not found", http.StatusNotFound)
+			return
+		}
+	}
+	if err := activateSession(body.ID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // --- Match Handlers ---
@@ -390,7 +707,16 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 
 	time.Sleep(time.Duration(randInt(10, 100)) * time.Millisecond)
 
-	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole, round) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime, body.StartingHole, body.Round)
+	// Stamp new matches with the active session (NULL when none is active)
+	var sessionID interface{}
+	if sid, _, sTeamA, sTeamB, ok := getActiveSession(); ok {
+		if !(body.TeamA == sTeamA && body.TeamB == sTeamB) && !(body.TeamA == sTeamB && body.TeamB == sTeamA) {
+			http.Error(w, "match teams must be the active session's teams", http.StatusBadRequest)
+			return
+		}
+		sessionID = sid
+	}
+	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole, round, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime, body.StartingHole, body.Round, sessionID)
 	if err != nil {
 		log.Printf("AddMatch error: %v | payload: %+v", err, body)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -521,8 +847,17 @@ func GetMatchScore(w http.ResponseWriter, r *http.Request) {
 // --- Dashboard Handler ---
 func Dashboard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	// 1. Get all teams
-	teamRows, err := DB.Query("SELECT id, name, color FROM teams")
+	// Resolve active session; when none exists, fall back to legacy behavior (all teams/matches)
+	sessionID, sessionTitle, sessionTeamA, sessionTeamB, hasSession := getActiveSession()
+	// 1. Get teams (only the session's two teams when a session is active)
+	var teamRows *sql.Rows
+	var err error
+	if hasSession {
+		// Session's team A first, team B second — preserves the order chosen at session creation
+		teamRows, err = DB.Query("SELECT id, name, color, COALESCE(logo, '') FROM teams WHERE id IN (?, ?) ORDER BY CASE id WHEN ? THEN 0 ELSE 1 END", sessionTeamA, sessionTeamB, sessionTeamA)
+	} else {
+		teamRows, err = DB.Query("SELECT id, name, color, COALESCE(logo, '') FROM teams")
+	}
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -536,14 +871,20 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 		var id int
 		var name string
 		var color string
-		teamRows.Scan(&id, &name, &color)
-		teams = append(teams, map[string]interface{}{"id": id, "name": name, "score": 0.0, "color": color})
+		var logo string
+		teamRows.Scan(&id, &name, &color, &logo)
+		teams = append(teams, map[string]interface{}{"id": id, "name": name, "score": 0.0, "color": color, "logo": logo})
 		teamScores[id] = 0.0
 		projectedScores[id] = 0.0
 		teamNames[id] = name
 	}
-	// 2. Get all finished matches and accumulate scores
-	matchRows, _ := DB.Query("SELECT id, team_a_id, team_b_id, status, start_time, starting_hole, round FROM matches ORDER BY start_time")
+	// 2. Get matches (filtered to the active session when one exists) and accumulate scores
+	var matchRows *sql.Rows
+	if hasSession {
+		matchRows, _ = DB.Query("SELECT id, team_a_id, team_b_id, status, start_time, starting_hole, round FROM matches WHERE session_id=? ORDER BY start_time", sessionID)
+	} else {
+		matchRows, _ = DB.Query("SELECT id, team_a_id, team_b_id, status, start_time, starting_hole, round FROM matches ORDER BY start_time")
+	}
 	defer matchRows.Close()
 	matches := []map[string]interface{}{}
 	roundSet := map[int]bool{}
@@ -686,11 +1027,22 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	var sessionOut interface{}
+	if hasSession {
+		sessionOut = map[string]interface{}{
+			"id":        sessionID,
+			"title":     sessionTitle,
+			"team_a_id": sessionTeamA,
+			"team_b_id": sessionTeamB,
+			"rounds":    loadSessionRounds(sessionID),
+		}
+	}
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"teams":            teams,
 		"matches":          grouped,
 		"projectedScores":  projectedScores,
 		"available_rounds": availableRounds,
+		"session":          sessionOut,
 	})
 }
 

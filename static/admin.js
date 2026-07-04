@@ -129,7 +129,10 @@ function renderTeams(teams) {
     ul.innerHTML = '';
     teams.forEach(t => {
         const li = document.createElement('li');
-        li.innerHTML = `<span><span style="display:inline-block;width:1em;height:1em;background:${t.color};border-radius:50%;margin-right:0.5em;"></span>${t.name}</span>` +
+        const logoImg = t.logo
+            ? `<img src="${t.logo}?v=${Date.now()}" alt="" style="height:1.6em;width:1.6em;object-fit:contain;vertical-align:middle;margin-right:0.5em;">`
+            : '';
+        li.innerHTML = `<span>${logoImg}<span style="display:inline-block;width:1em;height:1em;background:${t.color};border-radius:50%;margin-right:0.5em;"></span>${t.name}</span>` +
             `<span class="actions">
                 <button class="edit" onclick="editTeam(${t.id}, '${t.name}', '${t.color}')">Edit</button>
                 <button onclick="removeTeam(${t.id})">Remove</button>
@@ -144,11 +147,22 @@ document.getElementById('team-form').onsubmit = async function(e) {
     const name = document.getElementById('team-name').value;
     const color = document.getElementById('team-color').value;
     const url = id ? '/api/team/edit' : '/api/team/add';
-    await fetch(url, {
+    const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id ? parseInt(id) : undefined, name, color })
     });
+    // Upload logo if a file was chosen (needs the team id — from the form or the add response)
+    const logoInput = document.getElementById('team-logo');
+    if (logoInput.files.length > 0 && res.ok) {
+        const team = await res.json();
+        const teamId = id ? parseInt(id) : team.id;
+        const fd = new FormData();
+        fd.append('team_id', teamId);
+        fd.append('logo', logoInput.files[0]);
+        const upRes = await fetch('/api/team/logo', { method: 'POST', body: fd });
+        if (!upRes.ok) alert('Logo upload failed: ' + await upRes.text());
+    }
     this.reset();
     document.querySelector('#team-form button').textContent = 'Add Team';
     fetchTeams();
@@ -164,6 +178,125 @@ window.editTeam = function(id, name, color) {
 window.removeTeam = async function(id) {
     await fetch(`/api/team/remove?id=${id}`);
     fetchTeams();
+};
+
+// --- Sessions ---
+async function fetchSessions() {
+    const res = await fetch('/api/session/list');
+    if (!res.ok) return;
+    const data = await res.json();
+    renderSessions(data.sessions || []);
+}
+
+function renderSessions(sessions) {
+    const ul = document.getElementById('sessions-list');
+    ul.innerHTML = '';
+    sessions.forEach(s => {
+        const li = document.createElement('li');
+        const roundsInfo = (s.rounds || []).length
+            ? `, ${s.rounds.length} round${s.rounds.length > 1 ? 's' : ''}`
+            : '';
+        const activeBadge = s.is_active
+            ? `<span style="color:#16a34a;font-weight:700;margin-left:0.5em;">Active</span>`
+            : `<button onclick="activateSession(${s.id})">Set Active</button>`;
+        li.innerHTML = `<span><strong>${s.title}</strong> — ${s.team_a_name} vs ${s.team_b_name}${roundsInfo}</span>` +
+            `<span class="actions">
+                ${activeBadge}
+                <button class="edit" data-session='${JSON.stringify(s).replace(/'/g, "&#39;")}' onclick="editSession(this)">Edit</button>
+                <button onclick="removeSession(${s.id})">Remove</button>
+            </span>`;
+        ul.appendChild(li);
+    });
+}
+
+async function populateSessionTeamSelects() {
+    const res = await fetch('/api/team/list');
+    const teams = (await res.json()).teams || [];
+    const selA = document.getElementById('session-team-a');
+    const selB = document.getElementById('session-team-b');
+    selA.innerHTML = selB.innerHTML = '';
+    teams.forEach(t => {
+        selA.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+        selB.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+    });
+    if (teams.length > 1) selB.selectedIndex = 1;
+}
+
+window.addSessionRoundRow = function(round) {
+    const list = document.getElementById('session-rounds-list');
+    const row = document.createElement('div');
+    row.className = 'session-round-row';
+    row.style.cssText = 'display:flex;gap:0.5em;align-items:center;margin-bottom:0.4em;';
+    const num = round && round.round_number !== undefined ? round.round_number : list.children.length + 1;
+    const date = round && round.date ? round.date : '';
+    row.innerHTML = `<input type="number" min="0" class="sr-num" value="${num}" style="width:5em;" title="Round number">` +
+        `<input type="date" class="sr-date" value="${date}">` +
+        `<button type="button" onclick="this.parentElement.remove()">Remove</button>`;
+    list.appendChild(row);
+};
+
+document.getElementById('session-form').onsubmit = async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('session-id').value;
+    const title = document.getElementById('session-title').value;
+    const team_a_id = parseInt(document.getElementById('session-team-a').value);
+    const team_b_id = parseInt(document.getElementById('session-team-b').value);
+    if (team_a_id === team_b_id) {
+        alert('Team A and Team B must be different');
+        return;
+    }
+    const rounds = [];
+    document.querySelectorAll('#session-rounds-list .session-round-row').forEach(row => {
+        const num = parseInt(row.querySelector('.sr-num').value);
+        if (!isNaN(num)) rounds.push({ round_number: num, date: row.querySelector('.sr-date').value });
+    });
+    const url = id ? '/api/session/edit' : '/api/session/add';
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id ? parseInt(id) : undefined, title, team_a_id, team_b_id, rounds })
+    });
+    if (!res.ok) {
+        alert(await res.text());
+        return;
+    }
+    this.reset();
+    document.getElementById('session-rounds-list').innerHTML = '';
+    document.querySelector('#session-form button[type="submit"]').textContent = 'Add Session';
+    fetchSessions();
+    populateMatchForm();
+};
+
+window.editSession = function(btn) {
+    const data = btn.getAttribute('data-session');
+    if (!data) return;
+    const s = JSON.parse(data);
+    document.getElementById('session-id').value = s.id;
+    document.getElementById('session-title').value = s.title;
+    document.getElementById('session-team-a').value = s.team_a_id;
+    document.getElementById('session-team-b').value = s.team_b_id;
+    document.getElementById('session-rounds-list').innerHTML = '';
+    (s.rounds || []).forEach(r => addSessionRoundRow(r));
+    document.querySelector('#session-form button[type="submit"]').textContent = 'Save Session';
+};
+
+window.removeSession = async function(id) {
+    const res = await fetch(`/api/session/remove?id=${id}`, { method: 'POST' });
+    if (!res.ok) {
+        alert(await res.text());
+        return;
+    }
+    fetchSessions();
+};
+
+window.activateSession = async function(id) {
+    await fetch('/api/session/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+    });
+    fetchSessions();
+    populateMatchForm();
 };
 
 // --- Matches ---
@@ -602,9 +735,21 @@ function addTwoHours(timeStr) {
 }
 
 // --- Populate match form (team dropdowns) ---
+// When a session is active, only its two teams are offered, in session order (A first, B second).
 async function populateMatchForm() {
-    const teamsRes = await fetch('/api/team/list');
+    const [teamsRes, sessionsRes] = await Promise.all([
+        fetch('/api/team/list'),
+        fetch('/api/session/list'),
+    ]);
     allTeams = (await teamsRes.json()).teams || [];
+    const sessions = sessionsRes.ok ? ((await sessionsRes.json()).sessions || []) : [];
+    const active = sessions.find(s => s.is_active);
+    if (active) {
+        const byId = {};
+        allTeams.forEach(t => { byId[t.id] = t; });
+        const sessionTeams = [byId[active.team_a_id], byId[active.team_b_id]].filter(Boolean);
+        if (sessionTeams.length === 2) allTeams = sessionTeams;
+    }
     const teamA = document.getElementById('match-team-a');
     const teamB = document.getElementById('match-team-b');
     teamA.innerHTML = teamB.innerHTML = '';
@@ -1031,6 +1176,8 @@ window.onload = async function() {
     await loadAllPlayers();
     fetchPlayers();
     fetchTeams();
+    fetchSessions();
+    populateSessionTeamSelects();
     await fetchMatches();
     populateMatchForm();
     populatePlayerTeamSelect();

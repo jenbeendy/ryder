@@ -117,6 +117,7 @@
         <div class="tab-bar">
             <button class="tab-btn active" data-tab="players-section" onclick="showTab('players-section')">Players</button>
             <button class="tab-btn" data-tab="teams-section" onclick="showTab('teams-section')">Teams</button>
+            <button class="tab-btn" data-tab="sessions-section" onclick="showTab('sessions-section')">Sessions</button>
             <button class="tab-btn" data-tab="matches-section" onclick="showTab('matches-section')">Matches</button>
             <button class="tab-btn" data-tab="visibility-section" onclick="showTab('visibility-section')">Visibility</button>
             <button class="tab-btn" data-tab="lock-section" onclick="showTab('lock-section')">Lock Results</button>
@@ -152,9 +153,28 @@
                 <input type="text" id="team-name" required>
                 <label for="team-color">Color</label>
                 <input type="color" id="team-color" value="#2563eb">
+                <label for="team-logo">Logo (PNG/JPEG, square, max 2 MB)</label>
+                <input type="file" id="team-logo" accept="image/png,image/jpeg">
                 <button type="submit">Add Team</button>
             </form>
             <ul id="teams-list"></ul>
+        </div>
+        <div class="section" id="sessions-section">
+            <h2>Sessions</h2>
+            <form id="session-form">
+                <input type="hidden" id="session-id">
+                <label for="session-title">Title</label>
+                <input type="text" id="session-title" required>
+                <label for="session-team-a">Team A</label>
+                <select id="session-team-a" required></select>
+                <label for="session-team-b">Team B</label>
+                <select id="session-team-b" required></select>
+                <label>Rounds</label>
+                <div id="session-rounds-list"></div>
+                <button type="button" onclick="addSessionRoundRow()">+ Add Round</button>
+                <button type="submit">Add Session</button>
+            </form>
+            <ul id="sessions-list"></ul>
         </div>
         <div class="section" id="matches-section">
             <h2>Matches</h2>

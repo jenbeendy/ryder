@@ -68,6 +68,22 @@ func autoMigrate(db *sql.DB) {
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL
 		);`,
+		`CREATE TABLE IF NOT EXISTS sessions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			title TEXT NOT NULL,
+			team_a_id INTEGER,
+			team_b_id INTEGER,
+			is_active INTEGER DEFAULT 0,
+			FOREIGN KEY (team_a_id) REFERENCES teams(id),
+			FOREIGN KEY (team_b_id) REFERENCES teams(id)
+		);`,
+		`CREATE TABLE IF NOT EXISTS session_rounds (
+			session_id INTEGER NOT NULL,
+			round_number INTEGER NOT NULL,
+			date TEXT,
+			PRIMARY KEY (session_id, round_number),
+			FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+		);`,
 	}
 	for _, stmt := range tables {
 		if _, err := db.Exec(stmt); err != nil {
@@ -88,6 +104,10 @@ func autoMigrate(db *sql.DB) {
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN starting_hole INTEGER DEFAULT 1;")
 	// Add round column if not exists
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN round INTEGER DEFAULT 0;")
+	// Add session_id column if not exists
+	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN session_id INTEGER;")
+	// Add logo column if not exists
+	_, _ = db.Exec("ALTER TABLE teams ADD COLUMN logo TEXT;")
 }
 
 func main() {

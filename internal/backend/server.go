@@ -91,6 +91,13 @@ func StartServer() {
 	mux.HandleFunc("/api/team/list", ListTeams)
 	mux.HandleFunc("/api/team/assign", AssignPlayersToTeam)
 	mux.HandleFunc("/api/team/players", ListPlayersByTeam)
+	mux.HandleFunc("/api/team/logo", wrapAndBroadcast(UploadTeamLogo))
+	// Session endpoints
+	mux.HandleFunc("/api/session/add", wrapAndBroadcast(AddSession))
+	mux.HandleFunc("/api/session/edit", wrapAndBroadcast(EditSession))
+	mux.HandleFunc("/api/session/remove", wrapAndBroadcast(RemoveSession))
+	mux.HandleFunc("/api/session/activate", wrapAndBroadcast(SetActiveSession))
+	mux.HandleFunc("/api/session/list", ListSessions)
 	// Match endpoints
 	mux.HandleFunc("/api/match/add", wrapAndBroadcast(AddMatch))
 	mux.HandleFunc("/api/match/edit", wrapAndBroadcast(EditMatch))

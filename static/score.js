@@ -71,15 +71,15 @@ async function fetchMatches() {
 
 async function showMatchScoreSection() {
     if (!currentMatch) return;
-    function teamLogoSlug(name) {
-        return name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, '_');
-    }
     function teamHtml(team) {
-        const slug = teamLogoSlug(team.name);
         const players = team.players.map(p => `<span class="team-label-player">${p.name}</span>`).join('');
+        const logo = team.logo
+            ? `<img src="${team.logo}" alt="${team.name}" class="team-label-logo" onerror="this.style.display='none';this.nextElementSibling.style.display=''">`
+              + `<span class="team-label-name" style="display:none">${team.name}</span>`
+            : `<div class="team-label-logo" style="border-radius:50%;background:${team.color || '#888'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:22px;">${(team.name || '?').charAt(0).toUpperCase()}</div>`
+              + `<span class="team-label-name">${team.name}</span>`;
         return `<div class="team-label-wrap">`
-            + `<img src="/img/${slug}.png" alt="${team.name}" class="team-label-logo" onerror="this.style.display='none';this.nextElementSibling.style.display=''">`
-            + `<span class="team-label-name" style="display:none">${team.name}</span>`
+            + logo
             + `<div class="team-label-players">${players}</div>`
             + `</div>`;
     }

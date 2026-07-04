@@ -12,8 +12,30 @@ async function fetchShow() {
     const settings = settingsRes.ok ? await settingsRes.json() : {};
     const availableRounds = data.available_rounds || [];
     const latestRound = availableRounds.length > 0 ? availableRounds[availableRounds.length - 1] : null;
+    if (data.session && data.session.title) {
+        const titleEl = document.getElementById('show-session-title');
+        if (titleEl) titleEl.textContent = data.session.title;
+    }
+    renderShowLogos(data.teams || []);
     renderShowTeamscore(data.teams || [], data.projectedScores || {});
     renderShowMatches(data.matches || {}, settings, latestRound);
+}
+
+// Logo <img>, or a colored circle with the team's initial when no logo uploaded
+function teamLogoHtml(team, sizePx) {
+    if (team.logo) {
+        return `<img src="${team.logo}" alt="${team.name}" style="height:${sizePx}px;width:${sizePx}px;object-fit:contain;">`;
+    }
+    const initial = (team.name || '?').charAt(0).toUpperCase();
+    return `<div style="height:${sizePx}px;width:${sizePx}px;border-radius:50%;background:${team.color || '#888'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:${Math.round(sizePx * 0.45)}px;" title="${team.name}">${initial}</div>`;
+}
+
+function renderShowLogos(teams) {
+    const left = document.getElementById('show-logo-left');
+    const right = document.getElementById('show-logo-right');
+    if (!left || !right) return;
+    left.innerHTML = teams.length > 0 ? teamLogoHtml(teams[0], 72) : '';
+    right.innerHTML = teams.length > 1 ? teamLogoHtml(teams[1], 72) : '';
 }
 
 function renderShowTeamscore(teams, projectedScores) {

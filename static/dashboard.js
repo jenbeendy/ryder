@@ -25,9 +25,43 @@ async function fetchDashboard() {
             selectedRound = maxRound;
         }
     }
+    renderSessionTitle(data.session, data.teams || []);
+    renderHeaderLogos(data.teams || []);
     renderRoundSelector(availableRounds);
     renderTeams(data.teams || [], data.projectedScores || {});
     renderMatches(data.matches || {}, settings);
+}
+
+// Shared: logo <img>, or a colored circle with the team's initial when no logo uploaded
+function teamLogoHtml(team, sizePx) {
+    if (team.logo) {
+        return `<img src="${team.logo}" alt="${team.name}" style="height:${sizePx}px;width:${sizePx}px;object-fit:contain;">`;
+    }
+    const initial = (team.name || '?').charAt(0).toUpperCase();
+    return `<div style="height:${sizePx}px;width:${sizePx}px;border-radius:50%;background:${team.color || '#888'};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:${Math.round(sizePx * 0.45)}px;" title="${team.name}">${initial}</div>`;
+}
+
+function renderHeaderLogos(teams) {
+    const div = document.getElementById('header-logos');
+    if (!div) return;
+    if (teams.length < 2) {
+        div.innerHTML = '';
+        return;
+    }
+    div.innerHTML = teamLogoHtml(teams[0], 91)
+        + `<span style="font-size:1.5rem;font-weight:700;color:#565656;">vs</span>`
+        + teamLogoHtml(teams[1], 91);
+}
+
+function renderSessionTitle(session, teams) {
+    const titleEl = document.getElementById('session-title');
+    if (!titleEl) return;
+    if (session && session.title) {
+        titleEl.textContent = session.title;
+    } else if (teams.length === 0) {
+        titleEl.textContent = 'No active session';
+    }
+    // session === null with legacy data: keep the default hardcoded title
 }
 
 function renderRoundSelector(availableRounds) {
@@ -37,9 +71,21 @@ function renderRoundSelector(availableRounds) {
         div.innerHTML = '';
         return;
     }
-    div.innerHTML = availableRounds.map(r =>
-        `<button onclick="selectRound(${r})" style="padding:0.3rem 0.9rem;border-radius:8px;border:2px solid #1741a6;background:${r === selectedRound ? '#1741a6' : '#fff'};color:${r === selectedRound ? '#fff' : '#1741a6'};font-weight:600;cursor:pointer;">${r + 1}. Kolo</button>`
-    ).join('');
+    const roundDates = {};
+    const session = lastDashboardData && lastDashboardData.data ? lastDashboardData.data.session : null;
+    (session && session.rounds ? session.rounds : []).forEach(sr => {
+        if (sr.date) roundDates[sr.round_number] = sr.date;
+    });
+    div.innerHTML = availableRounds.map(r => {
+        const dateLabel = roundDates[r] ? ` (${formatRoundDate(roundDates[r])})` : '';
+        return `<button onclick="selectRound(${r})" style="padding:0.3rem 0.9rem;border-radius:8px;border:2px solid #1741a6;background:${r === selectedRound ? '#1741a6' : '#fff'};color:${r === selectedRound ? '#fff' : '#1741a6'};font-weight:600;cursor:pointer;">${r + 1}. Kolo${dateLabel}</button>`;
+    }).join('');
+}
+
+function formatRoundDate(iso) {
+    const parts = iso.split('-');
+    if (parts.length !== 3) return iso;
+    return `${parseInt(parts[2])}.${parseInt(parts[1])}.`;
 }
 
 window.selectRound = function(r) {
