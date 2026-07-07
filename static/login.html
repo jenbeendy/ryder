@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ryder Admin Login</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <script defer src="/static/login.js"></script>
+    <style>
+        body { font-family: 'Roboto', Arial, sans-serif; background: #f3f7ff; margin: 0; }
+        .login-container { max-width: 400px; margin: 4rem auto; background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 2rem 1.5rem; }
+        h1 { text-align: center; color: #2563eb; font-size: 1.5rem; }
+        label { display: block; margin: 0.5rem 0 0.2rem 0; color: #374151; }
+        input { width: 100%; padding: 0.5rem; margin-bottom: 0.7rem; border-radius: 6px; border: 1px solid #bbb; box-sizing: border-box; }
+        button { width: 100%; background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 0.6rem 1.5rem; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 0.5rem; }
+        button:hover { background: #1741a6; }
+        .google-btn { background: #fff; color: #374151; border: 1px solid #d1d5db; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .google-btn:hover { background: #f3f4f6; }
+        .divider { display: flex; align-items: center; gap: 10px; color: #9ca3af; margin: 1rem 0; font-size: 0.85rem; }
+        .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid #e5e7eb; }
+        .links { text-align: center; margin-top: 1rem; font-size: 0.9rem; }
+        .links a { color: #2563eb; cursor: pointer; text-decoration: none; }
+        .links a:hover { text-decoration: underline; }
+        .message { border-radius: 8px; padding: 0.6rem 0.9rem; margin-bottom: 1rem; font-size: 0.9rem; display: none; }
+        .message.error { background: #fee2e2; color: #991b1b; }
+        .message.info { background: #dbeafe; color: #1e40af; }
+        form { display: none; }
+        form.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>Ryder Admin</h1>
+        <div id="message" class="message"></div>
+
+        <form id="login-form" class="active">
+            <label for="login-email">Email</label>
+            <input type="email" id="login-email" autocomplete="username" required>
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" autocomplete="current-password" required>
+            <button type="submit">Sign in</button>
+            <div class="divider">or</div>
+            <button type="button" class="google-btn" onclick="location.href='/auth/google/login'">
+                <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.7 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z"/><path fill="#FBBC05" d="M10.4 28.7a14.5 14.5 0 0 1 0-9.4l-7.8-6.1a24 24 0 0 0 0 21.6l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.6l-7.6-5.9c-2.1 1.4-4.8 2.3-7.6 2.3-6.3 0-11.7-3.7-13.6-9l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+                Sign in with Google
+            </button>
+            <div class="links">
+                <a id="show-forgot">Forgot password?</a> &middot; <a id="show-register">Register</a>
+            </div>
+        </form>
+
+        <form id="register-form">
+            <label for="register-email">Email</label>
+            <input type="email" id="register-email" autocomplete="username" required>
+            <label for="register-password">Password (min 8 characters)</label>
+            <input type="password" id="register-password" autocomplete="new-password" minlength="8" required>
+            <button type="submit">Register</button>
+            <div class="links"><a class="show-login">Back to sign in</a></div>
+        </form>
+
+        <form id="forgot-form">
+            <label for="forgot-email">Email</label>
+            <input type="email" id="forgot-email" autocomplete="username" required>
+            <button type="submit">Send reset link</button>
+            <div class="links"><a class="show-login">Back to sign in</a></div>
+        </form>
+    </div>
+</body>
+</html>

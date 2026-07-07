@@ -78,40 +78,55 @@ func StartServer() {
 	mux.HandleFunc("/dashboard/", HandleMainPage)
 	// Main page (dashboard as homepage)
 	mux.HandleFunc("/", HandleMainPage)
+	// Auth endpoints
+	mux.HandleFunc("/api/auth/register", RegisterHandler)
+	mux.HandleFunc("/api/auth/login", LoginHandler)
+	mux.HandleFunc("/api/auth/logout", LogoutHandler)
+	mux.HandleFunc("/api/auth/me", MeHandler)
+	mux.HandleFunc("/api/auth/forgot", ForgotPasswordHandler)
+	mux.HandleFunc("/api/auth/reset", ResetPasswordHandler)
+	mux.HandleFunc("/auth/google/login", GoogleLoginHandler)
+	mux.HandleFunc("/auth/google/callback", GoogleCallbackHandler)
+	// Admin management endpoints
+	mux.HandleFunc("/api/admin/invite", RequireAdminAPI(InviteAdmin))
+	mux.HandleFunc("/api/admin/invites", RequireAdminAPI(ListInvites))
+	mux.HandleFunc("/api/admin/invite/remove", RequireAdminAPI(RemoveInvite))
+	mux.HandleFunc("/api/admin/users", RequireAdminAPI(ListAdminUsers))
 	// Player endpoints
-	mux.HandleFunc("/api/player/add", wrapAndBroadcast(AddPlayer))
-	mux.HandleFunc("/api/player/edit", wrapAndBroadcast(EditPlayer))
-	mux.HandleFunc("/api/player/remove", wrapAndBroadcast(RemovePlayer))
+	mux.HandleFunc("/api/player/add", RequireAdminAPI(wrapAndBroadcast(AddPlayer)))
+	mux.HandleFunc("/api/player/edit", RequireAdminAPI(wrapAndBroadcast(EditPlayer)))
+	mux.HandleFunc("/api/player/remove", RequireAdminAPI(wrapAndBroadcast(RemovePlayer)))
 	mux.HandleFunc("/api/player/list", ListPlayers)
 	mux.HandleFunc("/api/player/stats", HandlePlayerStats)
 	// Team endpoints
-	mux.HandleFunc("/api/team/add", wrapAndBroadcast(AddTeam))
-	mux.HandleFunc("/api/team/edit", wrapAndBroadcast(EditTeam))
-	mux.HandleFunc("/api/team/remove", wrapAndBroadcast(RemoveTeam))
+	mux.HandleFunc("/api/team/add", RequireAdminAPI(wrapAndBroadcast(AddTeam)))
+	mux.HandleFunc("/api/team/edit", RequireAdminAPI(wrapAndBroadcast(EditTeam)))
+	mux.HandleFunc("/api/team/remove", RequireAdminAPI(wrapAndBroadcast(RemoveTeam)))
 	mux.HandleFunc("/api/team/list", ListTeams)
-	mux.HandleFunc("/api/team/assign", AssignPlayersToTeam)
+	mux.HandleFunc("/api/team/assign", RequireAdminAPI(AssignPlayersToTeam))
 	mux.HandleFunc("/api/team/players", ListPlayersByTeam)
-	mux.HandleFunc("/api/team/logo", wrapAndBroadcast(UploadTeamLogo))
+	mux.HandleFunc("/api/team/logo", RequireAdminAPI(wrapAndBroadcast(UploadTeamLogo)))
 	// Session endpoints
-	mux.HandleFunc("/api/session/add", wrapAndBroadcast(AddSession))
-	mux.HandleFunc("/api/session/edit", wrapAndBroadcast(EditSession))
-	mux.HandleFunc("/api/session/remove", wrapAndBroadcast(RemoveSession))
-	mux.HandleFunc("/api/session/activate", wrapAndBroadcast(SetActiveSession))
+	mux.HandleFunc("/api/session/add", RequireAdminAPI(wrapAndBroadcast(AddSession)))
+	mux.HandleFunc("/api/session/edit", RequireAdminAPI(wrapAndBroadcast(EditSession)))
+	mux.HandleFunc("/api/session/remove", RequireAdminAPI(wrapAndBroadcast(RemoveSession)))
+	mux.HandleFunc("/api/session/activate", RequireAdminAPI(wrapAndBroadcast(SetActiveSession)))
 	mux.HandleFunc("/api/session/list", ListSessions)
 	// Match endpoints
-	mux.HandleFunc("/api/match/add", wrapAndBroadcast(AddMatch))
-	mux.HandleFunc("/api/match/edit", wrapAndBroadcast(EditMatch))
-	mux.HandleFunc("/api/match/remove", wrapAndBroadcast(RemoveMatch))
+	mux.HandleFunc("/api/match/add", RequireAdminAPI(wrapAndBroadcast(AddMatch)))
+	mux.HandleFunc("/api/match/edit", RequireAdminAPI(wrapAndBroadcast(EditMatch)))
+	mux.HandleFunc("/api/match/remove", RequireAdminAPI(wrapAndBroadcast(RemoveMatch)))
 	mux.HandleFunc("/api/match/list", ListMatches)
-	mux.HandleFunc("/api/matches", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/matches", RequireAdminAPI(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			AddMatch(w, r)
+			go broadcast()
 			return
 		}
 		// Handle other methods (GET, etc.) if needed
-	})
+	}))
 	// Score endpoint
-	mux.HandleFunc("/api/score/submit", wrapAndBroadcast(SubmitScore))
+	mux.HandleFunc("/api/score/submit", RequireAdminAPI(wrapAndBroadcast(SubmitScore)))
 	// Dashboard
 	mux.HandleFunc("/api/dashboard", Dashboard)
 	// Settings
@@ -121,8 +136,10 @@ func StartServer() {
 			return
 		}
 		if r.Method == http.MethodPost {
-			UpdateSetting(w, r)
-			go broadcast()
+			RequireAdminAPI(func(w http.ResponseWriter, r *http.Request) {
+				UpdateSetting(w, r)
+				go broadcast()
+			})(w, r)
 			return
 		}
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -130,8 +147,10 @@ func StartServer() {
 	// Match score endpoints
 	mux.HandleFunc("/api/match/score", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			SubmitMatchScore(w, r)
-			go broadcast()
+			RequireAdminAPI(func(w http.ResponseWriter, r *http.Request) {
+				SubmitMatchScore(w, r)
+				go broadcast()
+			})(w, r)
 			return
 		}
 		if r.Method == http.MethodGet {

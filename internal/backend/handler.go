@@ -1060,12 +1060,28 @@ func HandleMainPage(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "static/dashboard.html")
 		return
 	}
+	if r.URL.Path == "/login" || r.URL.Path == "/login/" {
+		http.ServeFile(w, r, "static/login.html")
+		return
+	}
+	if r.URL.Path == "/reset" || r.URL.Path == "/reset/" {
+		http.ServeFile(w, r, "static/reset.html")
+		return
+	}
 	if r.URL.Path == "/adminjd" || r.URL.Path == "/adminjd/" {
+		if !isAuthenticated(r) {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
 		http.ServeFile(w, r, "static/adminjd.html")
 		return
 	}
 	// Serve static assets (JS, CSS, etc.)
 	if len(r.URL.Path) > 8 && r.URL.Path[:8] == "/static/" {
+		if r.URL.Path == "/static/adminjd.html" && !isAuthenticated(r) {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
 		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
 		http.ServeFile(w, r, "."+r.URL.Path)
 		return

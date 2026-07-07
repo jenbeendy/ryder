@@ -16,6 +16,10 @@
         .section { display: none; margin-bottom: 2.5rem; }
         .section.active { display: block; }
         .section h2 { color: #1741a6; margin-bottom: 0.5rem; }
+        .user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 0.5rem; font-size: 0.9rem; color: #6b7280; }
+        .user-bar button { margin-top: 0; padding: 0.3rem 0.9rem; font-size: 0.85rem; background: #6b7280; }
+        .user-bar button:hover { background: #4b5563; }
+        .invite-status { font-size: 0.8rem; color: #6b7280; margin-left: 0.5rem; }
         label { display: block; margin: 0.5rem 0 0.2rem 0; }
         input, select { width: 100%; padding: 0.5rem; margin-bottom: 0.7rem; border-radius: 6px; border: 1px solid #bbb; }
         button { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 0.6rem 1.5rem; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 0.5rem; }
@@ -114,6 +118,10 @@
 <body>
     <div class="admin-container">
         <h1>Ryder Admin</h1>
+        <div class="user-bar">
+            <span id="admin-email"></span>
+            <button id="logout-btn" type="button">Logout</button>
+        </div>
         <div class="tab-bar">
             <button class="tab-btn active" data-tab="players-section" onclick="showTab('players-section')">Players</button>
             <button class="tab-btn" data-tab="teams-section" onclick="showTab('teams-section')">Teams</button>
@@ -122,6 +130,7 @@
             <button class="tab-btn" data-tab="visibility-section" onclick="showTab('visibility-section')">Visibility</button>
             <button class="tab-btn" data-tab="lock-section" onclick="showTab('lock-section')">Lock Results</button>
             <button class="tab-btn" data-tab="stats-section" onclick="showTab('stats-section');loadStatsTeams()">Statistics</button>
+            <button class="tab-btn" data-tab="admins-section" onclick="showTab('admins-section');fetchAdminsTab()">Admins</button>
         </div>
         <div class="section active" id="players-section">
             <h2>Players</h2>
@@ -300,6 +309,18 @@
                     <tbody id="stats-tbody"></tbody>
                 </table>
             </div>
+        </div>
+        <div class="section" id="admins-section">
+            <h2>Admins</h2>
+            <ul id="admins-list"></ul>
+            <h2>Invite Admin</h2>
+            <form id="invite-form">
+                <label for="invite-email">Email</label>
+                <input type="email" id="invite-email" required>
+                <button type="submit">Send Invite</button>
+            </form>
+            <h2>Pending Invites</h2>
+            <ul id="invites-list"></ul>
         </div>
     </div>
     <script>

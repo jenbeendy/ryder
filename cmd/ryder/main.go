@@ -84,6 +84,34 @@ func autoMigrate(db *sql.DB) {
 			PRIMARY KEY (session_id, round_number),
 			FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 		);`,
+		`CREATE TABLE IF NOT EXISTS admin_users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+			password_hash TEXT,
+			google_sub TEXT UNIQUE,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE TABLE IF NOT EXISTS auth_sessions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+			token_hash TEXT NOT NULL UNIQUE,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			expires_at DATETIME NOT NULL
+		);`,
+		`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+			token_hash TEXT NOT NULL UNIQUE,
+			expires_at DATETIME NOT NULL,
+			used_at DATETIME
+		);`,
+		`CREATE TABLE IF NOT EXISTS admin_invites (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+			invited_by INTEGER REFERENCES admin_users(id),
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			accepted_at DATETIME
+		);`,
 	}
 	for _, stmt := range tables {
 		if _, err := db.Exec(stmt); err != nil {

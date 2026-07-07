@@ -8,4 +8,9 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.32
 )
 
-require golang.org/x/image v0.43.0 // indirect
+require (
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/image v0.43.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
+)

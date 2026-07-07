@@ -1,3 +1,13 @@
+// --- Auth guard: any 401 from the API means the session expired ---
+const _origFetch = window.fetch;
+window.fetch = async (...args) => {
+    const res = await _origFetch(...args);
+    if (res.status === 401) {
+        location.href = '/login';
+    }
+    return res;
+};
+
 // --- Module state ---
 let allPlayers = [];
 let allMatches = [];
@@ -1172,7 +1182,65 @@ window.setLockRound = function(r) {
     fetchAndRenderLock();
 };
 
+async function initAuth() {
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) return; // fetch wrapper already redirects on 401
+    const me = await res.json();
+    document.getElementById('admin-email').textContent = me.email;
+    document.getElementById('logout-btn').onclick = async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        location.href = '/login';
+    };
+    document.getElementById('invite-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('invite-email').value;
+        const res = await fetch('/api/admin/invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || 'Invite failed');
+            return;
+        }
+        document.getElementById('invite-email').value = '';
+        fetchAdminsTab();
+    };
+}
+
+window.fetchAdminsTab = async function() {
+    const [adminsRes, invitesRes] = await Promise.all([
+        fetch('/api/admin/users'),
+        fetch('/api/admin/invites')
+    ]);
+    if (!adminsRes.ok || !invitesRes.ok) return;
+    const admins = (await adminsRes.json()).admins || [];
+    const invites = (await invitesRes.json()).invites || [];
+
+    document.getElementById('admins-list').innerHTML = admins.map(a => {
+        const methods = [a.has_google ? 'Google' : null, a.has_password ? 'password' : null].filter(Boolean).join(', ');
+        return `<li>${a.email}<span class="invite-status">${methods}</span></li>`;
+    }).join('');
+
+    const pending = invites.filter(i => !i.accepted);
+    document.getElementById('invites-list').innerHTML = pending.length === 0
+        ? '<li>No pending invites</li>'
+        : pending.map(i => `<li>${i.email}
+            <div class="actions"><button onclick="removeInvite(${i.id})">Revoke</button></div></li>`).join('');
+};
+
+window.removeInvite = async function(id) {
+    await fetch('/api/admin/invite/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+    });
+    fetchAdminsTab();
+};
+
 window.onload = async function() {
+    await initAuth();
     await loadAllPlayers();
     fetchPlayers();
     fetchTeams();
