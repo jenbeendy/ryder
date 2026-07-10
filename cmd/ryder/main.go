@@ -15,7 +15,9 @@ func autoMigrate(db *sql.DB) {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL,
 			email TEXT,
-			hcp REAL
+			hcp REAL,
+			golfer_identifier TEXT,
+			home_club TEXT
 		);`,
 		`CREATE TABLE IF NOT EXISTS teams (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,6 +138,10 @@ func autoMigrate(db *sql.DB) {
 	_, _ = db.Exec("ALTER TABLE matches ADD COLUMN session_id INTEGER;")
 	// Add logo column if not exists
 	_, _ = db.Exec("ALTER TABLE teams ADD COLUMN logo TEXT;")
+	// Add golfer_identifier column if not exists
+	_, _ = db.Exec("ALTER TABLE players ADD COLUMN golfer_identifier TEXT;")
+	// Add home_club column if not exists
+	_, _ = db.Exec("ALTER TABLE players ADD COLUMN home_club TEXT;")
 }
 
 func main() {

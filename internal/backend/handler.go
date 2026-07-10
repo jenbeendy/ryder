@@ -17,12 +17,14 @@ import (
 )
 
 type Player struct {
-	ID       int      `json:"id"`
-	Name     string   `json:"name"`
-	Email    string   `json:"email"`
-	HCP      *float64 `json:"hcp,omitempty"`
-	TeamID   *int     `json:"team_id,omitempty"`
-	TeamName string   `json:"team_name,omitempty"`
+	ID               int      `json:"id"`
+	Name             string   `json:"name"`
+	Email            string   `json:"email"`
+	HCP              *float64 `json:"hcp,omitempty"`
+	TeamID           *int     `json:"team_id,omitempty"`
+	TeamName         string   `json:"team_name,omitempty"`
+	GolferIdentifier *string  `json:"golfer_identifier,omitempty"`
+	HomeClub         *string  `json:"home_club,omitempty"`
 }
 
 type Team struct {
@@ -207,7 +209,7 @@ func ListMatches(w http.ResponseWriter, r *http.Request) {
 
 // --- Player List Handler ---
 func ListPlayers(w http.ResponseWriter, r *http.Request) {
-	rows, err := DB.Query(`SELECT p.id, p.name, p.email, p.hcp, tp.team_id, t.name
+	rows, err := DB.Query(`SELECT p.id, p.name, p.email, p.hcp, p.golfer_identifier, p.home_club, tp.team_id, t.name
 		FROM players p
 		LEFT JOIN team_players tp ON p.id = tp.player_id
 		LEFT JOIN teams t ON tp.team_id = t.id
@@ -225,14 +227,21 @@ func ListPlayers(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var p Player
 		var hcp sql.NullFloat64
+		var golferID, homeClub sql.NullString
 		var teamID sql.NullInt64
 		var teamName sql.NullString
-		if err := rows.Scan(&p.ID, &p.Name, &p.Email, &hcp, &teamID, &teamName); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Email, &hcp, &golferID, &homeClub, &teamID, &teamName); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if hcp.Valid {
 			p.HCP = &hcp.Float64
+		}
+		if golferID.Valid {
+			p.GolferIdentifier = &golferID.String
+		}
+		if homeClub.Valid {
+			p.HomeClub = &homeClub.String
 		}
 		if teamID.Valid {
 			tid := int(teamID.Int64)
@@ -309,7 +318,7 @@ func AddPlayer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	res, err := DB.Exec("INSERT INTO players (name, email, hcp) VALUES (?, ?, ?)", p.Name, p.Email, p.HCP)
+	res, err := DB.Exec("INSERT INTO players (name, email, hcp, golfer_identifier, home_club) VALUES (?, ?, ?, ?, ?)", p.Name, p.Email, p.HCP, p.GolferIdentifier, p.HomeClub)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -330,7 +339,7 @@ func EditPlayer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, err := DB.Exec("UPDATE players SET name=?, email=?, hcp=? WHERE id=?", p.Name, p.Email, p.HCP, p.ID)
+	_, err := DB.Exec("UPDATE players SET name=?, email=?, hcp=?, golfer_identifier=?, home_club=? WHERE id=?", p.Name, p.Email, p.HCP, p.GolferIdentifier, p.HomeClub, p.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

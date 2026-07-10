@@ -97,6 +97,7 @@ func StartServer() {
 	mux.HandleFunc("/api/player/edit", RequireAdminAPI(wrapAndBroadcast(EditPlayer)))
 	mux.HandleFunc("/api/player/remove", RequireAdminAPI(wrapAndBroadcast(RemovePlayer)))
 	mux.HandleFunc("/api/player/list", ListPlayers)
+	mux.HandleFunc("/api/player/search", RequireAdminAPI(SearchGolferis))
 	mux.HandleFunc("/api/player/stats", HandlePlayerStats)
 	// Team endpoints
 	mux.HandleFunc("/api/team/add", RequireAdminAPI(wrapAndBroadcast(AddTeam)))

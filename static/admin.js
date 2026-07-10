@@ -60,17 +60,20 @@ function renderPlayers(players) {
     const ul = document.getElementById('players-list');
     ul.innerHTML = '';
     filtered.forEach(p => {
-        const hcp = p.hcp !== undefined && p.hcp !== null ? `, HCP: ${p.hcp}` : '';
-        const team = p.team_name ? `, Team: ${p.team_name}` : '';
+        const hcp = p.hcp !== undefined && p.hcp !== null ? `HCP: ${p.hcp}` : '';
+        const team = p.team_name ? `Team: ${p.team_name}` : '';
+        const club = p.home_club || '';
+        const details = [hcp, team, club].filter(Boolean).join(', ');
         const playerData = JSON.stringify({
             id: p.id,
             name: p.name || '',
-            email: p.email || '',
             hcp: p.hcp !== undefined && p.hcp !== null ? p.hcp : '',
-            team_id: p.team_id !== undefined && p.team_id !== null ? p.team_id : ''
+            team_id: p.team_id !== undefined && p.team_id !== null ? p.team_id : '',
+            golfer_identifier: p.golfer_identifier || '',
+            home_club: p.home_club || ''
         });
         const li = document.createElement('li');
-        li.innerHTML = `<span>${p.name} (${p.email||''}${hcp}${team})</span>` +
+        li.innerHTML = `<span>${p.name}${details ? ` (${details})` : ''}</span>` +
             `<span class="actions">
                 <button class="edit" data-player='${playerData.replace(/'/g, "&#39;")}' onclick="editPlayer(this)">Edit</button>
                 <button onclick="removePlayer(${p.id})">Remove</button>
@@ -93,14 +96,21 @@ document.getElementById('player-form').onsubmit = async function(e) {
     e.preventDefault();
     const id = document.getElementById('player-id').value;
     const name = document.getElementById('player-name').value;
-    const email = document.getElementById('player-email').value;
     const hcp = document.getElementById('player-hcp').value;
     const team_id = document.getElementById('player-team').value;
+    const golfer_identifier = document.getElementById('player-golfer-id').value;
+    const home_club = document.getElementById('player-home-club').value;
     const url = id ? '/api/player/edit' : '/api/player/add';
     await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: id ? parseInt(id) : undefined, name, email, hcp: hcp ? parseFloat(hcp) : null, team_id: team_id ? parseInt(team_id) : null })
+        body: JSON.stringify({
+            id: id ? parseInt(id) : undefined, name,
+            hcp: hcp ? parseFloat(hcp) : null,
+            team_id: team_id ? parseInt(team_id) : null,
+            golfer_identifier: golfer_identifier || null,
+            home_club: home_club || null
+        })
     });
     this.reset();
     document.querySelector('#player-form button').textContent = 'Add Player';
@@ -108,15 +118,134 @@ document.getElementById('player-form').onsubmit = async function(e) {
     await loadAllPlayers();
 };
 
+// --- Czech Golf Federation player search (debounced typeahead) ---
+// API returns names uppercased (e.g. "KLOR"); stored as "Klor Filip"
+function titleCaseName(s) {
+    return (s || '').toLocaleLowerCase('cs').replace(/(^|[\s-])(\S)/gu,
+        (m, sep, ch) => sep + ch.toLocaleUpperCase('cs'));
+}
+
+function initFederationSearch() {
+    const input = document.getElementById('player-search');
+    const dropdown = document.getElementById('player-search-dropdown');
+    if (!input || !dropdown) return;
+    let debounceTimer = null;
+    let requestSeq = 0;
+    let highlightedIndex = -1;
+
+    function hideDropdown() {
+        dropdown.classList.add('hidden');
+        dropdown.innerHTML = '';
+        highlightedIndex = -1;
+    }
+
+    function renderResults(results, errorMsg) {
+        dropdown.innerHTML = '';
+        highlightedIndex = -1;
+        if (errorMsg) {
+            const li = document.createElement('li');
+            li.textContent = errorMsg;
+            li.style.cursor = 'default';
+            dropdown.appendChild(li);
+            dropdown.classList.remove('hidden');
+            return;
+        }
+        if (!results.length) {
+            const li = document.createElement('li');
+            li.textContent = 'No players found';
+            li.style.cursor = 'default';
+            dropdown.appendChild(li);
+            dropdown.classList.remove('hidden');
+            return;
+        }
+        results.slice(0, 30).forEach(p => {
+            const li = document.createElement('li');
+            const parts = [];
+            if (p.hcp !== null && p.hcp !== undefined) parts.push(`HCP ${Number(p.hcp).toFixed(1)}`);
+            if (p.home_club_name) parts.push(p.home_club_name);
+            if (p.member_number) parts.push(`#${p.member_number}`);
+            if (p.age !== null && p.age !== undefined) parts.push(`age ${p.age}`);
+            li.textContent = `${p.last_name} ${p.first_name}` + (parts.length ? ` — ${parts.join(', ')}` : '');
+            li.addEventListener('mousedown', e => {
+                e.preventDefault();
+                document.getElementById('player-name').value = `${titleCaseName(p.last_name)} ${titleCaseName(p.first_name)}`.trim();
+                document.getElementById('player-hcp').value = p.hcp !== null && p.hcp !== undefined ? p.hcp : '';
+                document.getElementById('player-golfer-id').value = p.golfer_identifier || '';
+                document.getElementById('player-home-club').value = p.home_club_name || '';
+                input.value = '';
+                hideDropdown();
+            });
+            dropdown.appendChild(li);
+        });
+        dropdown.classList.remove('hidden');
+    }
+
+    async function doSearch(query) {
+        const seq = ++requestSeq;
+        try {
+            const res = await fetch(`/api/player/search?q=${encodeURIComponent(query)}`);
+            if (seq !== requestSeq) return; // stale response
+            if (!res.ok) {
+                let msg = 'Search failed';
+                try { msg = (await res.json()).error || msg; } catch (_) {}
+                renderResults([], msg);
+                return;
+            }
+            const data = await res.json();
+            if (seq !== requestSeq) return;
+            renderResults(data.results || []);
+        } catch (_) {
+            if (seq === requestSeq) renderResults([], 'Search failed');
+        }
+    }
+
+    input.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const q = input.value.trim();
+        if (q.length < 2) {
+            requestSeq++; // invalidate in-flight responses
+            hideDropdown();
+            return;
+        }
+        debounceTimer = setTimeout(() => doSearch(q), 200);
+    });
+
+    input.addEventListener('keydown', e => {
+        const items = dropdown.querySelectorAll('li');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+            items.forEach((li, i) => li.classList.toggle('highlighted', i === highlightedIndex));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            highlightedIndex = Math.max(highlightedIndex - 1, 0);
+            items.forEach((li, i) => li.classList.toggle('highlighted', i === highlightedIndex));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (highlightedIndex >= 0 && items[highlightedIndex]) {
+                items[highlightedIndex].dispatchEvent(new MouseEvent('mousedown'));
+            }
+        } else if (e.key === 'Escape') {
+            hideDropdown();
+        }
+    });
+
+    input.addEventListener('blur', () => {
+        setTimeout(hideDropdown, 200);
+    });
+}
+initFederationSearch();
+
 window.editPlayer = function(btn) {
     const data = btn.getAttribute('data-player');
     if (!data) return;
     const p = JSON.parse(data);
     document.getElementById('player-id').value = p.id;
     document.getElementById('player-name').value = p.name;
-    document.getElementById('player-email').value = p.email;
     document.getElementById('player-hcp').value = p.hcp !== undefined && p.hcp !== null ? p.hcp : '';
     document.getElementById('player-team').value = p.team_id !== undefined && p.team_id !== null ? p.team_id : '';
+    document.getElementById('player-golfer-id').value = p.golfer_identifier || '';
+    document.getElementById('player-home-club').value = p.home_club || '';
     document.querySelector('#player-form button').textContent = 'Save Player';
 };
 

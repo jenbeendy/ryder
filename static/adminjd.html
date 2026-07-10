@@ -309,8 +309,8 @@
             <button id="logout-btn" type="button">Logout</button>
         </div>
         <div class="tab-bar">
-            <button class="tab-btn active" data-tab="players-section" onclick="showTab('players-section')">Players</button>
-            <button class="tab-btn" data-tab="teams-section" onclick="showTab('teams-section')">Teams</button>
+            <button class="tab-btn active" data-tab="teams-section" onclick="showTab('teams-section')">Teams</button>
+            <button class="tab-btn" data-tab="players-section" onclick="showTab('players-section')">Players</button>
             <button class="tab-btn" data-tab="sessions-section" onclick="showTab('sessions-section')">Sessions</button>
             <button class="tab-btn" data-tab="matches-section" onclick="showTab('matches-section')">Matches</button>
             <button class="tab-btn" data-tab="visibility-section" onclick="showTab('visibility-section')">Visibility</button>
@@ -318,14 +318,19 @@
             <button class="tab-btn" data-tab="stats-section" onclick="showTab('stats-section');loadStatsTeams()">Statistics</button>
             <button class="tab-btn" data-tab="admins-section" onclick="showTab('admins-section');fetchAdminsTab()">Admins</button>
         </div>
-        <div class="section active" id="players-section">
+        <div class="section" id="players-section">
             <h2>Players</h2>
+            <div class="typeahead-widget" id="player-search-widget">
+                <label for="player-search">Search Czech Golf Federation</label>
+                <input type="text" id="player-search" class="typeahead-input" placeholder="Type name to search..." autocomplete="off">
+                <ul class="typeahead-dropdown hidden" id="player-search-dropdown"></ul>
+            </div>
             <form id="player-form">
                 <input type="hidden" id="player-id">
+                <input type="hidden" id="player-golfer-id">
+                <input type="hidden" id="player-home-club">
                 <label for="player-name">Name</label>
                 <input type="text" id="player-name" required>
-                <label for="player-email">Email</label>
-                <input type="email" id="player-email">
                 <label for="player-hcp">HCP</label>
                 <input type="number" step="0.1" id="player-hcp">
                 <label for="player-team">Team</label>
@@ -340,7 +345,7 @@
             </div>
             <ul id="players-list"></ul>
         </div>
-        <div class="section" id="teams-section">
+        <div class="section active" id="teams-section">
             <h2>Teams</h2>
             <form id="team-form">
                 <input type="hidden" id="team-id">
