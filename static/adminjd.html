@@ -4,120 +4,306 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ryder Admin</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script defer src="/static/admin.js"></script>
     <style>
-        body { font-family: 'Roboto', Arial, sans-serif; background: #f3f7ff; margin: 0; }
-        .admin-container { max-width: 700px; margin: 2rem auto; background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 2rem 1rem; }
-        h1 { text-align: center; color: #2563eb; }
-        .tab-bar { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; }
-        .tab-btn { padding: 8px 20px; border: none; background: none; cursor: pointer; font-size: 1rem; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #6b7280; }
-        .tab-btn.active { border-bottom-color: #2563eb; color: #2563eb; font-weight: 600; }
+        :root {
+            --paper: #fbfbf9;
+            --surface: #ffffff;
+            --ink: #16181d;
+            --muted: #6f7378;
+            --hairline: #e4e4df;
+            --hairline-strong: #cfcfc8;
+            --accent: #15734b;
+            --accent-strong: #0e5637;
+            --accent-tint: #eaf3ee;
+            --danger: #b3372e;
+            --danger-tint: #f8ecea;
+            --warn: #9a6a10;
+            --radius: 6px;
+            --focus-ring: 0 0 0 3px rgba(21, 115, 75, 0.25);
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--paper);
+            color: var(--ink);
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+        .admin-container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 1.5rem clamp(1rem, 4vw, 2rem) 4rem;
+            padding-left: max(clamp(1rem, 4vw, 2rem), env(safe-area-inset-left));
+            padding-right: max(clamp(1rem, 4vw, 2rem), env(safe-area-inset-right));
+        }
+        h1 {
+            font-size: clamp(1.6rem, 5vw, 2.1rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin: 0.5rem 0 0.25rem;
+        }
+        h1::after { content: " — Admin"; color: var(--muted); font-weight: 400; letter-spacing: -0.01em; }
+        h2 {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            border-bottom: 1px solid var(--hairline);
+            padding-bottom: 0.5rem;
+            margin: 1.75rem 0 1rem;
+        }
+        /* Sticky, horizontally scrollable tab index */
+        .tab-bar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--paper);
+            display: flex;
+            gap: 2px;
+            margin: 1rem calc(-1 * clamp(1rem, 4vw, 2rem)) 1.5rem;
+            padding: 0 clamp(1rem, 4vw, 2rem);
+            border-bottom: 1px solid var(--hairline);
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .tab-bar::-webkit-scrollbar { display: none; }
+        .tab-btn {
+            flex-shrink: 0;
+            scroll-snap-align: start;
+            padding: 0.7rem 0.65rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: var(--muted);
+            border-bottom: 2px solid transparent;
+            margin: 0 0 -1px 0;
+            border-radius: 0;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { color: var(--ink); background: none; }
+        .tab-btn.active { border-bottom-color: var(--accent); color: var(--ink); font-weight: 600; }
         .section { display: none; margin-bottom: 2.5rem; }
         .section.active { display: block; }
-        .section h2 { color: #1741a6; margin-bottom: 0.5rem; }
-        .user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 0.5rem; font-size: 0.9rem; color: #6b7280; }
-        .user-bar button { margin-top: 0; padding: 0.3rem 0.9rem; font-size: 0.85rem; background: #6b7280; }
-        .user-bar button:hover { background: #4b5563; }
-        .invite-status { font-size: 0.8rem; color: #6b7280; margin-left: 0.5rem; }
-        label { display: block; margin: 0.5rem 0 0.2rem 0; }
-        input, select { width: 100%; padding: 0.5rem; margin-bottom: 0.7rem; border-radius: 6px; border: 1px solid #bbb; }
-        button { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 0.6rem 1.5rem; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 0.5rem; }
-        button:hover { background: #1741a6; }
-        ul { list-style: none; padding: 0; }
-        li { background: #f3f7ff; border-radius: 8px; padding: 0.5rem 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
-        .actions button { margin-left: 0.5rem; background: #e53e3e; }
-        .actions button.edit { background: #38a169; }
-        .actions button.edit:hover { background: #276749; }
-        .actions button:hover { background: #9b2c2c; }
+        .section-hint { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.2rem; }
+        .user-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+        .user-bar button {
+            margin-top: 0;
+            min-height: 0;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            background: none;
+            color: var(--muted);
+            border: 1px solid var(--hairline-strong);
+        }
+        .user-bar button:hover { color: var(--ink); border-color: var(--ink); background: none; }
+        .invite-status { font-size: 0.8rem; color: var(--muted); margin-left: 0.5rem; }
+        /* Forms */
+        label {
+            display: block;
+            margin: 0.85rem 0 0.3rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+        }
+        input, select {
+            width: 100%;
+            padding: 0.55rem 0.7rem;
+            margin-bottom: 0.2rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--hairline-strong);
+            background: var(--surface);
+            color: var(--ink);
+            font: inherit;
+            font-size: 16px;
+            min-height: 44px;
+        }
+        input[type="checkbox"] { min-height: 0; width: auto; }
+        input[type="color"] { padding: 0.2rem; height: 44px; }
+        input[type="file"] { border: 1px dashed var(--hairline-strong); background: none; }
+        input:focus, select:focus, button:focus-visible {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: var(--focus-ring);
+        }
+        button:focus-visible { border-radius: var(--radius); }
+        button {
+            background: var(--accent);
+            color: #fff;
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 0.55rem 1.3rem;
+            font: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 0.9rem;
+            min-height: 44px;
+        }
+        button:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+        /* Lists (players, teams, sessions, admins, invites) */
+        ul { list-style: none; padding: 0; margin: 1rem 0 0; }
+        li {
+            background: none;
+            border-bottom: 1px solid var(--hairline);
+            padding: 0.6rem 2px;
+            margin: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        li > span { min-width: 0; overflow-wrap: anywhere; }
+        .actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: auto; }
+        .actions button {
+            margin: 0;
+            min-height: 36px;
+            padding: 0.3rem 0.9rem;
+            font-size: 0.82rem;
+            background: none;
+            color: var(--danger);
+            border: 1px solid var(--hairline-strong);
+        }
+        .actions button:hover { background: var(--danger-tint); border-color: var(--danger); }
+        .actions button.edit { color: var(--ink); }
+        .actions button.edit:hover { background: var(--accent-tint); border-color: var(--accent); color: var(--accent-strong); }
         /* Match cards */
         #matches-list { display: flex; flex-direction: column; gap: 10px; margin-top: 1.25rem; }
-        .match-card { background: #f8faff; border: 1px solid #dbeafe; border-radius: 10px; padding: 0.9rem 1rem; }
-        .match-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; }
+        .match-card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px; padding: 0.9rem 1rem; }
+        .match-card-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 0.65rem; }
         .match-badges { display: flex; gap: 6px; flex-wrap: wrap; }
-        .match-badge { font-size: 0.72rem; font-weight: 700; padding: 2px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
-        .match-badge.format-singles { background: #ede9fe; color: #6d28d9; }
-        .match-badge.format-foursome { background: #fef3c7; color: #92400e; }
-        .match-badge.format-texas_scramble { background: #d1fae5; color: #065f46; }
-        .match-badge.status-prepared { background: #e5e7eb; color: #374151; }
-        .match-badge.status-running { background: #dcfce7; color: #166534; }
-        .match-badge.status-completed { background: #f3f4f6; color: #6b7280; }
-        .match-meta { font-size: 0.82rem; color: #6b7280; }
+        .match-badge { font-size: 0.7rem; font-weight: 600; padding: 2px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid transparent; }
+        .match-badge.format-singles { background: none; border-color: var(--hairline-strong); color: var(--ink); }
+        .match-badge.format-foursome { background: none; border-color: var(--hairline-strong); color: var(--ink); }
+        .match-badge.format-texas_scramble { background: none; border-color: var(--hairline-strong); color: var(--ink); }
+        .match-badge.status-prepared { background: #f1f1ee; color: var(--muted); }
+        .match-badge.status-running { background: var(--accent-tint); color: var(--accent-strong); }
+        .match-badge.status-completed { background: var(--ink); color: var(--paper); }
+        .match-meta { font-size: 0.82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
         .match-teams { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 0.65rem; }
         .match-team { flex: 1; min-width: 0; }
         .match-team-right { text-align: right; }
-        .match-team-name { font-weight: 700; color: #1e40af; font-size: 0.92rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .match-players { font-size: 0.8rem; color: #4b5563; line-height: 1.4; }
-        .match-vs { font-weight: 700; color: #9ca3af; font-size: 0.88rem; padding-top: 2px; flex-shrink: 0; align-self: center; }
+        .match-team-name { font-weight: 700; color: var(--ink); font-size: 0.95rem; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .match-players { font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
+        .match-vs { font-weight: 400; color: var(--hairline-strong); font-size: 0.85rem; flex-shrink: 0; align-self: center; }
         .match-card-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
-        .match-card-actions button { font-size: 0.8rem; padding: 4px 11px; margin: 0; }
-        .match-card-actions button.danger { background: #e53e3e; }
-        .match-card-actions button.danger:hover { background: #9b2c2c; }
+        .match-card-actions button {
+            font-size: 0.82rem;
+            padding: 0.3rem 0.9rem;
+            margin: 0;
+            min-height: 36px;
+            background: none;
+            color: var(--ink);
+            border: 1px solid var(--hairline-strong);
+        }
+        .match-card-actions button:hover { background: var(--accent-tint); border-color: var(--accent); color: var(--accent-strong); }
+        .match-card-actions button.danger { color: var(--danger); }
+        .match-card-actions button.danger:hover { background: var(--danger-tint); border-color: var(--danger); color: var(--danger); }
         /* Filter bar */
-        .matches-filter-bar { display: flex; flex-direction: column; gap: 7px; background: #f0f6ff; border: 1px solid #dbeafe; border-radius: 8px; padding: 9px 12px; margin-top: 1.2rem; }
+        .matches-filter-bar { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); padding: 10px 2px; margin-top: 1.5rem; }
         .filter-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-        .filter-label { font-size: 0.78rem; font-weight: 600; color: #6b7280; min-width: 52px; }
-        .filter-btn { background: #e5e7eb; color: #374151; border: none; border-radius: 14px; padding: 3px 11px; font-size: 0.78rem; font-weight: 600; cursor: pointer; margin: 0; }
-        .filter-btn:hover { background: #dbeafe; color: #1e40af; }
-        .filter-btn.active { background: #2563eb; color: #fff; }
-        .filter-btn.active:hover { background: #1741a6; }
-        @media (max-width: 700px) { .admin-container { padding: 1rem 0.2rem; } }
+        .filter-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); min-width: 56px; }
+        .filter-btn { background: none; color: var(--muted); border: 1px solid transparent; border-radius: 20px; padding: 4px 12px; font-size: 0.8rem; font-weight: 500; cursor: pointer; margin: 0; min-height: 32px; }
+        .filter-btn:hover { color: var(--ink); border-color: var(--hairline-strong); background: none; }
+        .filter-btn.active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+        .filter-btn.active:hover { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+        #matches-count { font-size: 0.82rem; color: var(--muted); margin-top: 0.5rem; margin-bottom: -0.25rem; padding-left: 2px; }
         /* Inline match edit panel */
-        .match-edit-panel { border-top: 1px solid #dbeafe; margin-top: 0.65rem; padding-top: 0.65rem; }
-        .edit-panel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-bottom: 8px; }
-        .edit-label { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 2px; font-weight: 600; }
-        .edit-input { padding: 4px 7px; font-size: 0.85rem; margin: 0; width: 100%; box-sizing: border-box; margin-bottom: 0; }
+        .match-edit-panel { border-top: 1px solid var(--hairline); margin-top: 0.65rem; padding-top: 0.65rem; }
+        .edit-panel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 8px; }
+        .edit-label { font-size: 0.68rem; color: var(--muted); display: block; margin: 0 0 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+        .edit-input { padding: 4px 7px; font-size: 0.85rem; margin: 0; width: 100%; min-height: 36px; }
         /* Statistics tab */
-        #stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.92rem; }
-        #stats-table th { background: #2563eb; color: #fff; padding: 7px 10px; text-align: left; }
+        #stats-print-area { overflow-x: auto; }
+        #stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+        #stats-table th { background: none; color: var(--muted); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 7px 10px; text-align: left; border-bottom: 2px solid var(--ink); }
         #stats-table th:not(:first-child) { text-align: center; }
-        #stats-table td { padding: 6px 10px; border-bottom: 1px solid #e5e7eb; }
+        #stats-table td { padding: 8px 10px; border-bottom: 1px solid var(--hairline); }
         #stats-table td:not(:first-child) { text-align: center; }
-        #stats-table tr:hover td { background: #f0f6ff; }
+        #stats-table tr:hover td { background: var(--accent-tint); }
         #stats-table .total-col { font-weight: 700; }
         .stats-controls { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 0.5rem; }
         .stats-controls select { width: auto; margin: 0; }
         .stats-controls button { margin: 0; }
-        .btn-export { background: #059669; }
-        .btn-export:hover { background: #047857; }
-        #stats-empty { color: #6b7280; font-size: 0.9rem; margin-top: 1rem; }
+        .btn-export { background: none; color: var(--accent-strong); border-color: var(--accent); }
+        .btn-export:hover { background: var(--accent-tint); border-color: var(--accent-strong); }
+        #stats-empty { color: var(--muted); font-size: 0.9rem; margin-top: 1rem; }
         @media print {
             body * { visibility: hidden; }
             #stats-print-area, #stats-print-area * { visibility: visible; }
-            #stats-print-area { position: fixed; top: 0; left: 0; width: 100%; padding: 1rem; }
-            #stats-print-area h2 { color: #2563eb; }
+            #stats-print-area { position: fixed; top: 0; left: 0; width: 100%; padding: 1rem; overflow: visible; }
+            #stats-print-area h2 { color: var(--ink); border: none; }
         }
-        #score-modal { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); align-items:center; justify-content:center; }
-        #score-modal > div { background:#fff; padding:2rem; border-radius:12px; min-width:300px; max-width:90vw; }
+        /* Score modal */
+        #score-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(22, 24, 29, 0.45); align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+        #score-modal > div { background: var(--surface); padding: 1.5rem; border-radius: 10px; min-width: 300px; max-width: 100%; width: 380px; }
+        #score-modal h3 { margin: 0 0 0.5rem; font-size: 1.05rem; letter-spacing: -0.01em; }
+        #score-modal button[type="button"] { background: none; color: var(--muted); border: 1px solid var(--hairline-strong); margin-left: 6px; }
+        #score-modal button[type="button"]:hover { color: var(--ink); border-color: var(--ink); background: none; }
         /* Template bar */
         #template-bar { margin-bottom: 1rem; }
         .template-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0.5rem; }
-        .template-pill { display: inline-flex; align-items: center; background: #dbeafe; border-radius: 20px; overflow: hidden; }
-        .template-pill .template-apply { background: none; color: #1e40af; font-size: 0.85rem; padding: 4px 10px; border: none; border-radius: 0; font-weight: 600; cursor: pointer; margin: 0; }
-        .template-pill .template-apply:hover { background: #bfdbfe; }
-        .template-pill .template-delete { background: none; color: #6b7280; font-size: 1rem; padding: 2px 8px 2px 0; border: none; cursor: pointer; margin: 0; font-weight: 700; line-height: 1; }
-        .template-pill .template-delete:hover { color: #e53e3e; background: none; }
+        .template-pill { display: inline-flex; align-items: center; background: var(--accent-tint); border: 1px solid transparent; border-radius: 20px; overflow: hidden; }
+        .template-pill .template-apply { background: none; color: var(--accent-strong); font-size: 0.85rem; padding: 6px 10px; border: none; border-radius: 0; font-weight: 600; cursor: pointer; margin: 0; min-height: 0; }
+        .template-pill .template-apply:hover { background: rgba(21, 115, 75, 0.12); color: var(--accent-strong); }
+        .template-pill .template-delete { background: none; color: var(--muted); font-size: 1rem; padding: 2px 10px 2px 0; border: none; cursor: pointer; margin: 0; font-weight: 700; line-height: 1; min-height: 0; }
+        .template-pill .template-delete:hover { color: var(--danger); background: none; }
         .template-save-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .template-save-row button { font-size: 0.85rem; padding: 4px 12px; margin: 0; }
-        .template-save-row input[type="text"] { display: inline-block; width: auto; margin: 0; padding: 4px 8px; font-size: 0.85rem; }
+        .template-save-row button { font-size: 0.85rem; padding: 4px 12px; margin: 0; min-height: 36px; }
+        .template-save-row input[type="text"] { display: inline-block; width: auto; margin: 0; padding: 4px 8px; font-size: 0.9rem; min-height: 36px; }
         /* Typeahead */
         .typeahead-widget { position: relative; margin-bottom: 0.7rem; }
-        .typeahead-input { width: 100%; box-sizing: border-box; margin: 0; }
-        .typeahead-dropdown { position: absolute; z-index: 100; background: #fff; border: 1px solid #bbb; border-radius: 6px; max-height: 200px; overflow-y: auto; width: 100%; margin: 0; padding: 0; list-style: none; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+        .typeahead-input { width: 100%; margin: 0; }
+        .typeahead-dropdown { position: absolute; z-index: 100; background: var(--surface); border: 1px solid var(--hairline-strong); border-radius: var(--radius); max-height: 220px; overflow-y: auto; width: 100%; margin: 2px 0 0; padding: 0; list-style: none; box-shadow: 0 6px 20px rgba(22, 24, 29, 0.12); }
         .typeahead-dropdown.hidden { display: none; }
-        .typeahead-dropdown li { padding: 0.4rem 0.8rem; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; }
+        .typeahead-dropdown li { padding: 0.55rem 0.8rem; cursor: pointer; border-bottom: 1px solid var(--hairline); font-size: 0.95rem; flex-wrap: nowrap; }
         .typeahead-dropdown li:last-child { border-bottom: none; }
-        .typeahead-dropdown li:hover, .typeahead-dropdown li.highlighted { background: #dbeafe; }
+        .typeahead-dropdown li:hover, .typeahead-dropdown li.highlighted { background: var(--accent-tint); }
         .player-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
-        .player-tag { background: #dbeafe; color: #1e40af; border-radius: 12px; padding: 3px 10px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px; }
-        .tag-remove { background: none; border: none; cursor: pointer; color: #6b7280; font-size: 1.1em; padding: 0; margin: 0; font-weight: 700; line-height: 1; }
-        .tag-remove:hover { color: #e53e3e; background: none; }
-        .team-warning { color: #d97706; font-size: 0.82rem; margin: -0.4rem 0 0.4rem 0; }
+        .player-tag { background: var(--accent-tint); color: var(--accent-strong); border-radius: 12px; padding: 4px 10px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px; }
+        .tag-remove { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 1.1em; padding: 0 2px; margin: 0; font-weight: 700; line-height: 1; min-height: 0; }
+        .tag-remove:hover { color: var(--danger); background: none; }
+        .team-warning { color: var(--warn); font-size: 0.82rem; margin: 0.2rem 0 0.4rem; }
+        /* Mobile */
+        @media (max-width: 640px) {
+            li { padding: 0.6rem 0; }
+            .actions { width: 100%; justify-content: flex-end; }
+            .match-teams { flex-direction: column; gap: 4px; }
+            .match-team-right { text-align: left; }
+            .match-vs { align-self: flex-start; padding: 0; }
+            .match-card-actions button, .actions button { min-height: 42px; flex: 1 0 auto; }
+            #score-modal > div { width: 100%; }
+            .stats-controls { align-items: stretch; }
+            .stats-controls select { width: 100%; }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+            .tab-bar { scroll-behavior: smooth; }
+        }
     </style>
 </head>
 <body>
     <div class="admin-container">
-        <h1>Ryder Admin</h1>
+        <h1>Ryder</h1>
         <div class="user-bar">
             <span id="admin-email"></span>
             <button id="logout-btn" type="button">Logout</button>
@@ -256,7 +442,7 @@
                     <div id="matches-filter-round-btns" style="display:contents"></div>
                 </div>
             </div>
-            <div id="matches-count" style="font-size:0.82rem;color:#6b7280;margin-top:0.5rem;margin-bottom:-0.25rem;padding-left:2px;"></div>
+            <div id="matches-count"></div>
             <div id="matches-list"></div>
             <div id="score-modal">
               <div>
@@ -273,13 +459,13 @@
         </div>
         <div class="section" id="visibility-section">
             <h2>Dashboard Visibility</h2>
-            <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1.2rem;">Choose which match formats are shown on the dashboard. Score counting is not affected.</p>
+            <p class="section-hint">Choose which match formats are shown on the dashboard. Score counting is not affected.</p>
             <div id="visibility-round-selector" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
             <div id="visibility-checkboxes" style="display:flex;flex-direction:column;gap:1rem;"></div>
         </div>
         <div class="section" id="lock-section">
             <h2>Lock Results</h2>
-            <p style="color:#6b7280;font-size:0.9rem;margin-bottom:1.2rem;">Lock completed matches by format. Locked format hides the "Upravit zápas" button on the scoring page.</p>
+            <p class="section-hint">Lock completed matches by format. Locked format hides the "Upravit zápas" button on the scoring page.</p>
             <div id="lock-round-selector" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
             <div id="lock-checkboxes" style="display:flex;flex-direction:column;gap:1rem;"></div>
         </div>
