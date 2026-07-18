@@ -690,16 +690,21 @@ func SetActiveSession(w http.ResponseWriter, r *http.Request) {
 
 // --- Match Handlers ---
 func AddMatch(w http.ResponseWriter, r *http.Request) {
-	type req struct {
-		Format       string `json:"format"`
-		Holes        string `json:"holes"`
-		TeamA        int    `json:"team_a"`
-		TeamB        int    `json:"team_b"`
-		PlayersA     []int  `json:"players_a"`
-		PlayersB     []int  `json:"players_b"`
+	type foursomeReq struct {
 		StartTime    string `json:"start_time"`
 		StartingHole int    `json:"starting_hole"`
-		Round        int    `json:"round"`
+	}
+	type req struct {
+		Format       string       `json:"format"`
+		Holes        string       `json:"holes"`
+		TeamA        int          `json:"team_a"`
+		TeamB        int          `json:"team_b"`
+		PlayersA     []int        `json:"players_a"`
+		PlayersB     []int        `json:"players_b"`
+		StartTime    string       `json:"start_time"`
+		StartingHole int          `json:"starting_hole"`
+		Round        int          `json:"round"`
+		Foursome     *foursomeReq `json:"foursome"`
 	}
 	var body req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -708,6 +713,9 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.StartingHole < 1 || body.StartingHole > 18 {
 		body.StartingHole = 1
+	}
+	if body.Foursome != nil && (body.Foursome.StartingHole < 1 || body.Foursome.StartingHole > 18) {
+		body.Foursome.StartingHole = 1
 	}
 
 	randInt := func(min, max int) int {
@@ -725,18 +733,52 @@ func AddMatch(w http.ResponseWriter, r *http.Request) {
 		}
 		sessionID = sid
 	}
-	res, err := DB.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole, round, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, body.Format, "prepared", body.Holes, body.StartTime, body.StartingHole, body.Round, sessionID)
+
+	tx, err := DB.Begin()
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	insertMatch := func(format, holes, startTime string, startingHole int) error {
+		res, err := tx.Exec("INSERT INTO matches (team_a_id, team_b_id, format, status, holes, start_time, starting_hole, round, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", body.TeamA, body.TeamB, format, "prepared", holes, startTime, startingHole, body.Round, sessionID)
+		if err != nil {
+			return err
+		}
+		matchID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		for _, pid := range body.PlayersA {
+			if _, err := tx.Exec("INSERT INTO match_players (match_id, player_id, team_side) VALUES (?, ?, ?)", matchID, pid, "A"); err != nil {
+				return err
+			}
+		}
+		for _, pid := range body.PlayersB {
+			if _, err := tx.Exec("INSERT INTO match_players (match_id, player_id, team_side) VALUES (?, ?, ?)", matchID, pid, "B"); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := insertMatch(body.Format, body.Holes, body.StartTime, body.StartingHole); err != nil {
+		tx.Rollback()
 		log.Printf("AddMatch error: %v | payload: %+v", err, body)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	matchID, _ := res.LastInsertId()
-	for _, pid := range body.PlayersA {
-		_, _ = DB.Exec("INSERT INTO match_players (match_id, player_id, team_side) VALUES (?, ?, ?)", matchID, pid, "A")
+	if body.Foursome != nil {
+		if err := insertMatch("foursome", "9", body.Foursome.StartTime, body.Foursome.StartingHole); err != nil {
+			tx.Rollback()
+			log.Printf("AddMatch foursome error: %v | payload: %+v", err, body)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
-	for _, pid := range body.PlayersB {
-		_, _ = DB.Exec("INSERT INTO match_players (match_id, player_id, team_side) VALUES (?, ?, ?)", matchID, pid, "B")
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		log.Printf("AddMatch commit error: %v | payload: %+v", err, body)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusCreated)
 }

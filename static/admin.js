@@ -1160,6 +1160,31 @@ window.saveInlineEdit = async function(matchId) {
     await fetchMatches();
 };
 
+// --- Match progress modal ---
+function showMatchProgress(message) {
+    const overlay = document.getElementById('match-progress-overlay');
+    overlay.classList.remove('hidden');
+    overlay.querySelector('.progress-spinner').classList.remove('hidden', 'error', 'success');
+    document.getElementById('match-progress-message').textContent = message;
+    document.getElementById('match-progress-close').classList.add('hidden');
+}
+
+function finishMatchProgress(ok, message) {
+    const overlay = document.getElementById('match-progress-overlay');
+    const spinner = overlay.querySelector('.progress-spinner');
+    spinner.classList.add(ok ? 'success' : 'error');
+    document.getElementById('match-progress-message').textContent = message;
+    if (ok) {
+        setTimeout(hideMatchProgress, 1200);
+    } else {
+        document.getElementById('match-progress-close').classList.remove('hidden');
+    }
+}
+
+function hideMatchProgress() {
+    document.getElementById('match-progress-overlay').classList.add('hidden');
+}
+
 // --- Match Form Submission ---
 document.getElementById('match-form').onsubmit = async function(e) {
     e.preventDefault();
@@ -1180,28 +1205,35 @@ document.getElementById('match-form').onsubmit = async function(e) {
     const url = id ? '/api/match/edit' : '/api/match/add';
     const payload = { format, holes, team_a: teamA, team_b: teamB, players_a: playersA, players_b: playersB, start_time, starting_hole, round };
     if (id) payload.id = parseInt(id);
-    await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-    if (!id && format === 'texas_scramble' && holes === '9' && document.getElementById('match-also-foursome').checked) {
-        const foursomeHole = ((starting_hole - 1 + 9) % 18) + 1;
-        const foursomePayload = {
-            format: 'foursome', holes: '9',
-            team_a: teamA, team_b: teamB,
-            players_a: playersA, players_b: playersB,
+    const withFoursome = !id && format === 'texas_scramble' && holes === '9' && document.getElementById('match-also-foursome').checked;
+    if (withFoursome) {
+        payload.foursome = {
             start_time: addTwoHours(start_time),
-            starting_hole: foursomeHole,
-            round
+            starting_hole: ((starting_hole - 1 + 9) % 18) + 1
         };
-        const foursomeRes = await fetch('/api/match/add', {
+    }
+    showMatchProgress(id ? 'Saving match…' : (withFoursome ? 'Creating matches…' : 'Creating match…'));
+    let res;
+    try {
+        res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(foursomePayload)
+            body: JSON.stringify(payload)
         });
-        if (!foursomeRes.ok) alert('Foursome match creation failed. Please try again.');
+    } catch (err) {
+        finishMatchProgress(false, `Network error — ${withFoursome ? 'no match was created' : 'match not ' + (id ? 'saved' : 'created')}. Please try again.`);
+        return;
     }
+    if (!res.ok) {
+        const detail = (await res.text().catch(() => '')).trim();
+        let msg = id ? 'Match could not be saved.' : (withFoursome
+            ? 'Match creation failed — neither match was created.'
+            : 'Match could not be created.');
+        if (detail) msg += ` (${detail})`;
+        finishMatchProgress(false, msg + ' Please try again.');
+        return;
+    }
+    finishMatchProgress(true, id ? 'Match saved.' : (withFoursome ? 'Both matches created.' : 'Match created.'));
     selectedPlayersA = [];
     selectedPlayersB = [];
     renderTags('a');
