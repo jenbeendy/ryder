@@ -11,6 +11,10 @@ build:
 	@echo "Building $(APP_NAME)..."
 	go build -ldflags "-X main.version=$(VERSION)" -o bin/$(APP_NAME) $(CMD_DIR)
 
+build-linux:
+	@echo "Building $(APP_NAME) for Linux..."
+	CC=x86_64-linux-gnu-gcc GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -ldflags "-X main.version=$(VERSION)" -o bin/$(APP_NAME)-linux $(CMD_DIR)
+
 run:
 	@echo "Running $(APP_NAME)..."
 	go run $(CMD_DIR)
