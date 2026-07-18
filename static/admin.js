@@ -796,7 +796,8 @@ function createTypeahead(inputId, dropdownId, tagsId, side) {
         }
         players.forEach(p => {
             const li = document.createElement('li');
-            li.textContent = p.team_name ? `${p.name} (${p.team_name})` : `${p.name} (no team)`;
+            const hcp = p.hcp !== undefined && p.hcp !== null ? ` — HCP ${p.hcp}` : '';
+            li.textContent = (p.team_name ? `${p.name} (${p.team_name})` : `${p.name} (no team)`) + hcp;
             li.addEventListener('mousedown', e => {
                 e.preventDefault();
                 addPlayer(p, side);
@@ -968,7 +969,8 @@ function createEditTypeahead(side) {
         if (!players.length) { dropdown.classList.add('hidden'); return; }
         players.forEach(p => {
             const li = document.createElement('li');
-            li.textContent = p.team_name ? `${p.name} (${p.team_name})` : p.name;
+            const hcp = p.hcp !== undefined && p.hcp !== null ? ` — HCP ${p.hcp}` : '';
+            li.textContent = (p.team_name ? `${p.name} (${p.team_name})` : p.name) + hcp;
             li.addEventListener('mousedown', e => {
                 e.preventDefault();
                 addEditPlayer(p, side);
