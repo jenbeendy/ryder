@@ -801,7 +801,7 @@ function createTypeahead(inputId, dropdownId, tagsId, side) {
                 e.preventDefault();
                 addPlayer(p, side);
                 input.value = '';
-                dropdown.classList.add('hidden');
+                renderDropdown(getFiltered(''));
             });
             dropdown.appendChild(li);
         });
@@ -973,7 +973,7 @@ function createEditTypeahead(side) {
                 e.preventDefault();
                 addEditPlayer(p, side);
                 input.value = '';
-                dropdown.classList.add('hidden');
+                renderDropdown(getFiltered(''));
             });
             dropdown.appendChild(li);
         });
